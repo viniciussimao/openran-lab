@@ -9,8 +9,9 @@
     update_cache: true
     cache_valid_time: 3600
 
+# O módulo git não lê o commit de um clone sem tentar atualizá-lo
 - name: Ler o commit do submódulo do FlexRIC
-  ansible.builtin.command: git -C {{ flexric_src_dir }} rev-parse HEAD
+  ansible.builtin.command: git -C {{ flexric_src_dir }} rev-parse HEAD # noqa: command-instead-of-module
   register: flexric_head
   changed_when: false
   become: true
