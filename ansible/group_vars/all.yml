@@ -1,0 +1,15 @@
+---
+# Versões fixas do laboratório.
+# Altere apenas de forma deliberada e registre a mudança no CHANGELOG.md.
+
+# Usuário das VMs criado pela box do Vagrant
+lab_user: vagrant
+
+# OAI RAN (projeto Duranta, repositório oficial no GitHub)
+oai_repo_url: https://github.com/duranta-project/openairinterface5g.git
+oai_version: "2026.w46"
+oai_commit: "71a5b64cc76a6dbfd59efe87ba288e31f1d2a32d"
+
+# Versões de E2AP e E2SM-KPM: precisam ser iguais no OAI e no FlexRIC
+e2ap_version: E2AP_V3
+kpm_version: KPM_V3_00

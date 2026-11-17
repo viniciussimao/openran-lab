@@ -1,0 +1,20 @@
+---
+# Playbook principal do openran-lab.
+# O Vagrant coloca cada VM num grupo com o próprio nome (ran, obs, smo).
+
+- name: Base comum a todas as VMs
+  hosts: all
+  become: true
+  roles:
+    - common
+    - docker
+
+# Etapa 1 (em andamento): as roles abaixo entram quando o passo manual
+# correspondente estiver validado (veja docs/stages/01-ran-core-e2.md).
+# - name: RAN, core 5G e Near-RT RIC
+#   hosts: ran
+#   become: true
+#   roles:
+#     - oai_cn5g
+#     - oai_ran
+#     - flexric

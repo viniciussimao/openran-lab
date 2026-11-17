@@ -1,0 +1,12 @@
+# Força finais de linha LF. Importante para quem edita no Windows:
+# scripts e YAML com CRLF quebram no servidor Linux.
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Vagrantfile text eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary

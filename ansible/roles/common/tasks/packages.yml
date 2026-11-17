@@ -1,0 +1,13 @@
+---
+- name: Atualizar todos os pacotes
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: dist
+  when: common_apt_upgrade | bool
+
+- name: Instalar pacotes base
+  ansible.builtin.apt:
+    name: "{{ common_base_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600

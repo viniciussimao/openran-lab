@@ -1,0 +1,11 @@
+---
+# Role common: ajustes de base em todas as VMs.
+
+- name: Configurar DNS
+  ansible.builtin.import_tasks: dns.yml
+
+- name: Estender o disco
+  ansible.builtin.import_tasks: disk.yml
+
+- name: Instalar pacotes base
+  ansible.builtin.import_tasks: packages.yml

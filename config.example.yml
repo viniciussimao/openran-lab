@@ -1,0 +1,28 @@
+---
+# Modelo de configuração do openran-lab.
+# Copie para config.yml e ajuste aos recursos do seu servidor:
+#   cp config.example.yml config.yml
+
+# Box usada em todas as VMs (testada com Ubuntu 22.04).
+box: generic/ubuntu2204
+
+# Rede de gerenciamento criada pelo vagrant-libvirt.
+# Troque a sub-rede se ela já estiver em uso no seu servidor.
+management_network:
+  name: vagrant-libvirt
+  address: 192.168.121.0/24
+
+# VMs do laboratório. Habilite apenas as etapas que for usar.
+vms:
+  ran:            # core 5G, gNB, UEs e Near-RT RIC (Etapas 1 e 2)
+    enabled: true
+    cpus: 8
+    memory_mb: 16384
+  obs:            # consumidor Y1, observabilidade e portal (Etapas 3 a 5)
+    enabled: false
+    cpus: 2
+    memory_mb: 4096
+  smo:            # SMO e Non-RT RIC (Etapa 6)
+    enabled: false
+    cpus: 4
+    memory_mb: 8192

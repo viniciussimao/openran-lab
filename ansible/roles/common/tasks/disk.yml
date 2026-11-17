@@ -1,0 +1,18 @@
+---
+# O instalador do Ubuntu costuma deixar parte do disco livre no grupo LVM.
+# Aqui o volume raiz é estendido para usar todo o espaço disponível.
+
+- name: Ler o espaço livre no grupo de volumes
+  ansible.builtin.command: >-
+    vgs --noheadings --units m --nosuffix -o vg_free {{ common_lvm_vg }}
+  register: common_vg_free
+  changed_when: false
+  failed_when: false
+
+- name: Estender o volume raiz e o sistema de arquivos
+  ansible.builtin.command: >-
+    lvextend -r -l +100%FREE /dev/{{ common_lvm_vg }}/{{ common_lvm_lv }}
+  when:
+    - common_vg_free.rc == 0
+    - (common_vg_free.stdout | trim | float) > 1024
+  changed_when: true

@@ -1,0 +1,70 @@
+---
+# As boxes generic/* vêm com DNS públicos fixos (4.2.2.x, OpenDNS) e com
+# validação DNSSEC ligada. Atrás do dnsmasq do libvirt isso quebra a
+# resolução de nomes (erro "DNSSEC validation failed: missing-key").
+# Aqui a VM passa a usar o dnsmasq do libvirt, sem DNSSEC e sem DoT.
+
+- name: Remover servidores DNS e opções fixas da box
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/resolved.conf
+    regexp: '^(DNS|FallbackDNS|DNSSEC|DNSOverTLS)='
+    state: absent
+  notify: Restart systemd-resolved
+
+- name: Criar diretório de configuração do systemd-resolved
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Usar o dnsmasq do libvirt como DNS
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/libvirt.conf
+    mode: "0644"
+    content: |
+      # Gerenciado pelo openran-lab (role common)
+      [Resolve]
+      DNS={{ common_dns_server }}
+      DNSSEC=no
+      DNSOverTLS=no
+  notify: Restart systemd-resolved
+
+- name: Listar arquivos do netplan
+  ansible.builtin.find:
+    paths: /etc/netplan
+    patterns: "*.yaml"
+  register: common_netplan_files
+
+- name: Remover configurações do netplan que vieram com a box
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ common_netplan_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: item.path != '/etc/netplan/01-openran-lab.yaml'
+  notify: Apply netplan
+
+- name: Configurar a interface de gerenciamento só com DHCP
+  ansible.builtin.copy:
+    dest: /etc/netplan/01-openran-lab.yaml
+    mode: "0600"
+    content: |
+      # Gerenciado pelo openran-lab (role common)
+      network:
+        version: 2
+        ethernets:
+          {{ common_mgmt_interface }}:
+            dhcp4: true
+  notify: Apply netplan
+
+- name: Aplicar as mudanças de rede e DNS agora
+  ansible.builtin.meta: flush_handlers
+
+- name: Aguardar a resolução de nomes funcionar
+  ansible.builtin.command: getent hosts {{ common_dns_probe_host }}
+  register: common_dns_probe
+  until: common_dns_probe.rc == 0
+  retries: 15
+  delay: 2
+  changed_when: false

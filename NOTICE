@@ -1,0 +1,10 @@
+openran-lab
+Copyright 2026 Vinicius Simão e contribuidores
+
+Este produto é distribuído sob a Apache License, Version 2.0.
+
+O openran-lab não inclui código de terceiros. Durante o provisionamento,
+ele baixa os seguintes projetos, que seguem as próprias licenças:
+  - OpenAirInterface RAN (projeto Duranta)
+  - OAI CN5G
+  - FlexRIC

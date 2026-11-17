@@ -1,0 +1,15 @@
+---
+# Pacotes do Docker Engine (repositório oficial da Docker)
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+# Usuários que podem usar o Docker sem sudo
+docker_users:
+  - "{{ lab_user }}"
+
+# Arquitetura no formato usado pelo repositório apt da Docker
+docker_apt_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"

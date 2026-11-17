@@ -1,0 +1,29 @@
+# Estado local do Vagrant
+.vagrant/
+
+# Configuração específica de cada servidor
+config.yml
+
+# Ansible
+*.retry
+
+# Certificados e chaves gerados localmente
+*.pem
+*.key
+*.crt
+*.csr
+
+# Resultados brutos de experimentos
+experiments/results/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editores e sistema
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

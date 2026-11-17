@@ -1,0 +1,7 @@
+---
+# Configuração do ansible-lint
+profile: moderate
+
+exclude_paths:
+  - .vagrant/
+  - .github/

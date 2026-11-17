@@ -1,0 +1,44 @@
+---
+# Verificações estáticas em todo push e pull request.
+# Não sobe a rede 5G: isso exige KVM e roda nos servidores dos usuários.
+name: lint
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  yaml-and-ansible:
+    name: yamllint e ansible-lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar ferramentas
+        run: pip install yamllint ansible-lint
+
+      - name: yamllint
+        run: yamllint .
+
+      - name: ansible-lint
+        run: ansible-lint ansible/
+
+  shell-and-vagrant:
+    name: shellcheck e Vagrantfile
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: shellcheck scripts/*.sh
+
+      - name: Sintaxe do Vagrantfile
+        run: ruby -c Vagrantfile
