@@ -66,8 +66,6 @@ O `openran-lab` é um laboratório OpenRAN reproduzível e público, feito para 
 
 - Etapa 1 (RAN + core + E2) em andamento: guia manual em `docs/stages/01-ran-core-e2.md`.
 - Automatizado até agora: roles `common` (DNS, disco, pacotes) e `docker`. Validadas no servidor de teste em 2026-11-17: `vagrant up ran` com `failed=0`, disco estendido de 62 para 124 GB, Docker 29.10.0 e DNS em `192.168.121.1`.
-- Pendente no README: versões de libvirt e Ansible do host de teste ("a confirmar").
-
 ## Ao concluir uma tarefa ou etapa
 
 1. Atualize a documentação afetada (`README.md`, `docs/`).

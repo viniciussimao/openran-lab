@@ -48,10 +48,10 @@ Versões com que o laboratório foi testado:
 | --- | --- |
 | Sistema do host | Ubuntu 24.04.5 LTS |
 | QEMU/KVM | 8.2.2 |
-| libvirt | _a confirmar_ |
+| libvirt | 10.0.0 |
 | Vagrant | 2.4.9 |
 | vagrant-libvirt | 0.12.2 |
-| Ansible | _a confirmar_ |
+| Ansible | ansible-core 2.21.5 |
 
 Problemas comuns na preparação do host estão em [docs/troubleshooting.md](docs/troubleshooting.md).
 

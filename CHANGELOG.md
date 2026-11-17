@@ -12,6 +12,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - `Vagrantfile` configurável por `config.yml` (VMs, recursos e rede de gerenciamento), com VMs nomeadas `openran-ran`, `openran-obs` e `openran-smo`.
 - Roles Ansible `common` (DNS, disco e pacotes base) e `docker`, validadas no servidor de teste em 2026-11-17: `vagrant up ran` terminou com `failed=0`, o disco da VM foi estendido de 62 para 124 GB, o Docker 29.10.0 foi instalado e o DNS ficou em `192.168.121.1` (gateway da rede de gerenciamento).
 - `scripts/preflight.sh` para verificar o host antes do `vagrant up`.
+- README: versões testadas do libvirt (10.0.0) e do Ansible (ansible-core 2.21.5) no host de teste.
 - Documentação: arquitetura, roadmap, solução de problemas e guia manual da Etapa 1.
 - CI com yamllint, ansible-lint, shellcheck e verificação de sintaxe do `Vagrantfile`.
 - Roadmap: Etapa 8 (Near-RT RIC da O-RAN SC, para comparação com o FlexRIC), tabela de componentes prontos e próprios, e publicações planejadas.
