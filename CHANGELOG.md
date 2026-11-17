@@ -21,11 +21,14 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
   - `oai_cn5g`: copia os arquivos do core do repositório do OAI, fixa todas as imagens por digest (`imagem:tag@sha256:...`) num `docker-compose.override.yaml` e sobe o core com `docker compose up --wait`. OAI CN5G v2.2.2, com os 10 serviços do compose da tag (`oai-amf`, `oai-smf`, `oai-upf`, `oai-nrf`, `oai-ausf`, `oai-udm`, `oai-udr`, `ims`, `oai-ext-dn` e `mysql` 9.6) fixados pelos digests validados no servidor de teste.
 
   Os builds são idempotentes (registro do commit e das opções de cada build) e usam `async`/`poll`. Novas variáveis em `group_vars/all.yml`: `lab_home`, `oai_src_dir` e `oai_cn5g_image_digests`.
+- `configs/ue.conf`: configuração do nrUE (IMSI, chaves de teste do tutorial do CN5G e sessão PDU no DNN `oai`, SST 1), copiada para `~/ue.conf` pela role `oai_ran`.
+- Solução de problemas: UE que registra, mas não pede sessão PDU (`[SIM] no PDU sessions to request configured`).
 - Etapa 1 validada à mão no servidor de teste: `ping` do UE até o ext-dn com 5/5 respostas, E2 Setup aceito com os service models KPM, RC, CCC e SLICE_STATS, e `xapp_kpm_moni` mostrando métricas.
 - Roadmap: Etapa 8 (Near-RT RIC da O-RAN SC, para comparação com o FlexRIC), tabela de componentes prontos e próprios, e publicações planejadas.
 
 ### Alterado
 
+- Guia da Etapa 1: o nrUE passa a rodar com `-O ~/ue.conf` e sem `--uicc0.imsi`. Sem o arquivo, o UE não pede sessão PDU e a `oaitun_ue1` não é criada; com ele, o UE recebeu o IP `10.0.0.2` e o `ping` até o ext-dn deu 5/5.
 - Guia da Etapa 1: tabela do que é automático (passos 1 a 4) e do que continua manual (subir RIC, gNB, UE e xApp, e validar).
 - Guia da Etapa 1: o FlexRIC passa a ser compilado com gcc-12 (`CC=gcc-12 CXX=g++-12`, num diretório `build` limpo), porque o da tag `2026.w46` recusa o gcc-11 do Ubuntu 22.04. O OAI continua com o gcc-11. O caso foi incluído em `docs/troubleshooting.md`.
 - Etapa 6: o lado Near-RT do A1 passa a ser uma terminação A1-P seguindo a OpenAPI do A1AP; O1 usa componentes prontos (O1 Adapter do OAI e OAM da O-RAN SC).

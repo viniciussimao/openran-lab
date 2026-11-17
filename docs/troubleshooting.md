@@ -26,3 +26,9 @@ Problemas encontrados durante a montagem do laboratório e como resolvê-los.
 | Sintoma | Causa | Solução |
 | --- | --- | --- |
 | `FlexRIC doesn't support gcc-11` no `cmake` do FlexRIC | O FlexRIC da tag `2026.w46` recusa o gcc-11, padrão do Ubuntu 22.04 | Instalar `gcc-12 g++-12`, apagar o diretório `build` e rodar o `cmake` com `CC=gcc-12 CXX=g++-12` (passo 3 do [guia da Etapa 1](stages/01-ran-core-e2.md)). Não troque o compilador padrão: o OAI compila com o gcc-11 |
+
+## Execução
+
+| Sintoma | Causa | Solução |
+| --- | --- | --- |
+| nrUE registra no core, mas o log mostra `[SIM] no PDU sessions to request configured` e a interface `oaitun_ue1` não é criada | UE iniciado sem arquivo de configuração (só com `--uicc0.imsi`): sem `pdu_sessions`, ele não pede sessão PDU | Rodar o UE com `-O ~/ue.conf` (copiado de `configs/ue.conf` pelo provisionamento) e sem `--uicc0.imsi`. Não use o `ue.conf` do OAI: ele tem outro IMSI e um modelo de canal de satélite LEO. Veja o passo 5 do [guia da Etapa 1](stages/01-ran-core-e2.md) |

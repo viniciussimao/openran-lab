@@ -52,6 +52,8 @@ O `openran-lab` é um laboratório OpenRAN reproduzível e público, feito para 
 - Arquivos do CN5G: `doc/tutorial_resources/oai-cn5g` do próprio repositório do OAI (na tag fixa: OAI CN5G v2.2.2, 10 serviços).
 - Imagens do CN5G fixadas por digest em `oai_cn5g_image_digests` (`group_vars/all.yml`), no formato `imagem:tag@sha256:...`, aplicadas por um `docker-compose.override.yaml` gerado pela role `oai_cn5g`. Imagens com tag `latest` no compose do OAI (`ims`, `trf-gen-cn5g`) são aceitas só porque o digest é o que vale. Ao trocar a tag do OAI, confira os serviços e atualize os digests.
 - Sintaxe nova do nrUE: `--rfsimulator.[0].serveraddr`.
+- O nrUE roda com `-O ~/ue.conf` (de `configs/ue.conf`, copiado pela role `oai_ran`) e **sem** `--uicc0.imsi`. Sem o arquivo, o UE registra mas não pede sessão PDU (`[SIM] no PDU sessions to request configured`) e a `oaitun_ue1` não sobe. O `ue.conf` que vem com o OAI não serve: tem outro IMSI e um modelo de canal de satélite LEO. IMSI, chave e OPc são os valores de teste públicos do tutorial do CN5G.
+- Na Etapa 1 o slice do UE saiu como `1.ffffff` (SST 1, SD padrão), porque o `ue.conf` só define `nssai_sst`. Na Etapa 2 (multi-slice), o SD deve ser explícito no UE, no gNB e no core.
 - Agente E2 configurado por linha de comando: `--e2_agent.near_ric_ip_addr` e `--e2_agent.sm_dir /usr/local/lib/flexric/`.
 - Nenhum Near-RT RIC open source implementa Y1: o produtor e o consumidor Y1 serão próprios, seguindo o Y1AP, com os desvios documentados.
 - **Pronto antes de próprio.** Use software existente sempre que houver (tabela em `docs/roadmap.md`):

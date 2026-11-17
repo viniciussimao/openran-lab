@@ -121,11 +121,15 @@ No terminal 2 deve aparecer o E2 Setup do gNB.
 
 **Terminal 4: UE**
 
+O UE usa o `~/ue.conf`, copiado de `configs/ue.conf` pelo provisionamento. Ele define o IMSI, as chaves e a sessão PDU (DNN `oai`, SST 1). Não use o `ue.conf` que vem com o OAI: ele tem outro IMSI e inclui um modelo de canal de satélite LEO.
+
 ```bash
 cd ~/openairinterface5g/cmake_targets/ran_build/build
-sudo ./nr-uesoftmodem -r 106 --numerology 1 --band 78 -C 3619200000 --rfsim \
-  --uicc0.imsi 001010000000001 --rfsimulator.[0].serveraddr 127.0.0.1
+sudo ./nr-uesoftmodem -O ~/ue.conf -r 106 --numerology 1 --band 78 -C 3619200000 --rfsim \
+  --rfsimulator.[0].serveraddr 127.0.0.1
 ```
+
+O UE deve receber um IP (no servidor de teste, `10.0.0.2`) e criar a interface `oaitun_ue1`.
 
 **Terminal 5: xApp de KPM**
 
