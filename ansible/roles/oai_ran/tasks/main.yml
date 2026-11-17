@@ -54,11 +54,37 @@
   register: oai_ran_stamp_current
   failed_when: false
 
+# VMs provisionadas antes do diretório de estado têm o registro no
+# diretório de build. Ele é aproveitado (se ainda não houver registro novo)
+# e apagado.
+- name: Ler o registro antigo do OAI
+  ansible.builtin.slurp:
+    src: "{{ oai_ran_legacy_build_stamp }}"
+  register: oai_ran_stamp_legacy
+  failed_when: false
+
+- name: Apagar o registro antigo do diretório de build
+  ansible.builtin.file:
+    path: "{{ oai_ran_legacy_build_stamp }}"
+    state: absent
+
 - name: Decidir se o OAI precisa ser compilado
   ansible.builtin.set_fact:
     oai_ran_build_needed: >-
       {{ (oai_ran_binaries_stat.results | rejectattr('stat.exists') | list | length > 0)
-         or ((oai_ran_stamp_current.content | default('') | b64decode | trim) != oai_ran_build_id) }}
+         or ((oai_ran_stamp_current.content | default(oai_ran_stamp_legacy.content | default('')) | b64decode | trim)
+             != oai_ran_build_id) }}
+
+- name: Migrar o registro antigo para o diretório de estado
+  ansible.builtin.copy:
+    dest: "{{ oai_ran_build_stamp }}"
+    content: "{{ oai_ran_build_id }}\n"
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0644"
+  when:
+    - not (oai_ran_build_needed | bool)
+    - oai_ran_stamp_current.content is not defined
 
 - name: Compilar o OAI
   when: oai_ran_build_needed | bool

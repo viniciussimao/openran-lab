@@ -18,7 +18,7 @@
 | 5. Subir nearRT-RIC, gNB, UE e xApp | **Manual** |
 | 6. Validar | **Manual** |
 
-As roles são idempotentes: o OAI só é recompilado se o commit ou as versões de E2AP/KPM mudarem, e o FlexRIC só se o commit do submódulo, o compilador ou as opções do CMake mudarem. Cada build bem-sucedido deixa um registro em `cmake_targets/ran_build/build/.openran-lab-build` (OAI) e `/usr/local/lib/flexric/.openran-lab-build` (FlexRIC); apague o registro para forçar um novo build. Um build feito à mão, sem esse registro, é refeito uma vez no primeiro provisionamento.
+As roles são idempotentes: o OAI só é recompilado se o commit ou as versões de E2AP/KPM mudarem, e o FlexRIC só se o commit do submódulo, o compilador ou as opções do CMake mudarem. Cada build bem-sucedido deixa um registro em `/var/lib/openran-lab/` (`oai_ran.build` e `flexric.build`); apague o registro para forçar um novo build. Nada é gravado em `/usr/local/lib/flexric/`: o nearRT-RIC e o agente E2 carregam todo arquivo dessa pasta como plugin, e a role `flexric` falha se encontrar lá algo que não seja `.so`. Um build feito à mão, sem esse registro, é refeito uma vez no primeiro provisionamento.
 
 Os passos 1 a 4 continuam descritos abaixo como referência e para quem quiser reproduzi-los à mão.
 

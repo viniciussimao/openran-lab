@@ -9,7 +9,11 @@ oai_ran_binaries:
 
 # Arquivo que registra o commit e as opções do último build bem-sucedido.
 # Se ele bater com o esperado e os binários existirem, o build é pulado.
-oai_ran_build_stamp: "{{ oai_ran_build_dir }}/.openran-lab-build"
+oai_ran_build_stamp: "{{ lab_state_dir }}/oai_ran.build"
+
+# Registro antigo, de antes do diretório de estado. É lido uma vez (para
+# não recompilar à toa) e apagado.
+oai_ran_legacy_build_stamp: "{{ oai_ran_build_dir }}/.openran-lab-build"
 oai_ran_build_id: "{{ oai_commit }} {{ e2ap_version }} {{ kpm_version }}"
 
 # Limites dos builds longos, em segundos (async/poll)

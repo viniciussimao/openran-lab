@@ -21,8 +21,14 @@ flexric_cmake_options:
 flexric_sm_dir: /usr/local/lib/flexric
 
 # Registro do último build instalado. Se bater com o esperado e os
-# service models estiverem instalados, o build é pulado.
-flexric_build_stamp: "{{ flexric_sm_dir }}/.openran-lab-build"
+# service models estiverem instalados, o build é pulado. Nunca grave nada
+# em flexric_sm_dir: o nearRT-RIC e o agente E2 carregam todo arquivo de
+# lá como plugin e abortam se algum não for um service model.
+flexric_build_stamp: "{{ lab_state_dir }}/flexric.build"
+
+# Registro antigo, gravado por engano em flexric_sm_dir. É lido uma vez
+# (para não recompilar à toa) e apagado.
+flexric_legacy_build_stamp: "{{ flexric_sm_dir }}/.openran-lab-build"
 
 # Limite do build, em segundos (async/poll)
 flexric_build_timeout: 3600

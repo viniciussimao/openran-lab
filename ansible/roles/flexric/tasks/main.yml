@@ -34,11 +34,35 @@
   register: flexric_stamp_current
   failed_when: false
 
+# VMs provisionadas antes da correção têm o registro dentro de
+# flexric_sm_dir, o que derruba o nearRT-RIC. Ele é aproveitado (se ainda
+# não houver registro novo) e apagado.
+- name: Ler o registro antigo do FlexRIC
+  ansible.builtin.slurp:
+    src: "{{ flexric_legacy_build_stamp }}"
+  register: flexric_stamp_legacy
+  failed_when: false
+
+- name: Apagar o registro antigo de dentro do diretório dos service models
+  ansible.builtin.file:
+    path: "{{ flexric_legacy_build_stamp }}"
+    state: absent
+
 - name: Decidir se o FlexRIC precisa ser compilado
   ansible.builtin.set_fact:
     flexric_build_needed: >-
       {{ (flexric_installed_sms.matched == 0)
-         or ((flexric_stamp_current.content | default('') | b64decode | trim) != flexric_build_id) }}
+         or ((flexric_stamp_current.content | default(flexric_stamp_legacy.content | default('')) | b64decode | trim)
+             != flexric_build_id) }}
+
+- name: Migrar o registro antigo para o diretório de estado
+  ansible.builtin.copy:
+    dest: "{{ flexric_build_stamp }}"
+    content: "{{ flexric_build_id }}\n"
+    mode: "0644"
+  when:
+    - not (flexric_build_needed | bool)
+    - flexric_stamp_current.content is not defined
 
 - name: Compilar e instalar o FlexRIC
   when: flexric_build_needed | bool
@@ -89,3 +113,23 @@
         dest: "{{ flexric_build_stamp }}"
         content: "{{ flexric_build_id }}\n"
         mode: "0644"
+
+# O nearRT-RIC e o agente E2 (--e2_agent.sm_dir) carregam todo arquivo
+# desse diretório como plugin: qualquer arquivo que não seja .so os derruba
+- name: Listar o conteúdo do diretório dos service models
+  ansible.builtin.find:
+    paths: "{{ flexric_sm_dir }}"
+    file_type: any
+    hidden: true
+  register: flexric_sm_dir_content
+
+- name: Conferir se o diretório dos service models só tem arquivos .so
+  ansible.builtin.assert:
+    that:
+      - flexric_sm_dir_content.matched > 0
+      - flexric_sm_dir_content.files | map(attribute='path') | reject('search', '[.]so$') | list | length == 0
+    fail_msg: >-
+      {{ flexric_sm_dir }} deve conter só service models (.so), porque o
+      nearRT-RIC e o agente E2 carregam todo arquivo de lá como plugin.
+      Remova: {{ flexric_sm_dir_content.files | map(attribute='path') | reject('search', '[.]so$') | list | join(', ') }}
+    quiet: true

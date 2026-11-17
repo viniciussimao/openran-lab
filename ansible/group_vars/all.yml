@@ -6,6 +6,11 @@
 lab_user: vagrant
 lab_home: "/home/{{ lab_user }}"
 
+# Estado do laboratório (registros de idempotência dos builds). Fica fora
+# de qualquer pasta lida pelo OAI ou pelo FlexRIC: o nearRT-RIC e o agente
+# E2 carregam como plugin todo arquivo de /usr/local/lib/flexric/.
+lab_state_dir: /var/lib/openran-lab
+
 # OAI RAN (projeto Duranta, repositório oficial no GitHub)
 oai_repo_url: https://github.com/duranta-project/openairinterface5g.git
 oai_version: "2026.w46"
