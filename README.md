@@ -95,7 +95,8 @@ Para que o cenário seja reproduzível, as versões ficam fixas em [`ansible/gro
 | Componente | Versão |
 | --- | --- |
 | OAI RAN (Duranta) | tag `2026.w46` (commit `71a5b64c`) |
-| FlexRIC | submódulo da tag do OAI |
+| FlexRIC | submódulo da tag do OAI (compilado com gcc-12) |
+| OAI CN5G | v2.2.2 (imagens fixadas por digest) |
 | E2AP / E2SM-KPM | v3 / v3.00 (iguais no OAI e no FlexRIC) |
 | SO das VMs | Ubuntu 22.04 (`generic/ubuntu2204`) |
 

@@ -18,7 +18,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Roles Ansible da Etapa 1, habilitadas para o grupo `ran` no `site.yml`:
   - `oai_ran`: clona o OAI na tag `2026.w46` (conferindo o commit), inicia o submódulo do FlexRIC, roda `build_oai -I` e compila gNB e nrUE com o agente E2; copia `configs/ue.conf` para a home do `lab_user`;
   - `flexric`: instala o gcc-12 e compila e instala o FlexRIC do submódulo com `CC=gcc-12 CXX=g++-12`;
-  - `oai_cn5g`: copia os arquivos do core do repositório do OAI, fixa todas as imagens por digest num `docker-compose.override.yaml` e sobe o core com `docker compose up --wait`.
+  - `oai_cn5g`: copia os arquivos do core do repositório do OAI, fixa todas as imagens por digest (`imagem:tag@sha256:...`) num `docker-compose.override.yaml` e sobe o core com `docker compose up --wait`. OAI CN5G v2.2.2, com os 10 serviços do compose da tag (`oai-amf`, `oai-smf`, `oai-upf`, `oai-nrf`, `oai-ausf`, `oai-udm`, `oai-udr`, `ims`, `oai-ext-dn` e `mysql` 9.6) fixados pelos digests validados no servidor de teste.
 
   Os builds são idempotentes (registro do commit e das opções de cada build) e usam `async`/`poll`. Novas variáveis em `group_vars/all.yml`: `lab_home`, `oai_src_dir` e `oai_cn5g_image_digests`.
 - Etapa 1 validada à mão no servidor de teste: `ping` do UE até o ext-dn com 5/5 respostas, E2 Setup aceito com os service models KPM, RC, CCC e SLICE_STATS, e `xapp_kpm_moni` mostrando métricas.

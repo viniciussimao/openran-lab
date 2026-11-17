@@ -37,20 +37,18 @@
     oai_cn5g_services: "{{ (oai_cn5g_compose_raw.content | b64decode | from_yaml).services }}"
     oai_cn5g_compose_file: "{{ oai_cn5g_compose_files.files[0].path | basename }}"
 
-# Cada serviço precisa de um digest no group_vars, da mesma imagem que o
-# compose do OAI usa (só a tag é trocada pelo digest)
+# Cada serviço precisa de um digest no group_vars, com a mesma imagem:tag
+# que o compose do OAI usa (imagem:tag@sha256:digest)
 - name: Conferir os digests de cada serviço
   ansible.builtin.assert:
     that:
       - item.key in oai_cn5g_image_digests
       - oai_cn5g_image_digests[item.key] is regex('@sha256:[0-9a-f]{64}$')
-      - >-
-        (oai_cn5g_image_digests[item.key] | regex_replace('@sha256:.*$', ''))
-        == (item.value.image | regex_replace(':[^:/]+$', ''))
+      - (oai_cn5g_image_digests[item.key] | regex_replace('@sha256:.*$', '')) == item.value.image
     fail_msg: >-
       O serviço {{ item.key }} (imagem {{ item.value.image | default('?') }}) precisa
       de uma entrada em oai_cn5g_image_digests no formato
-      <imagem>@sha256:<64 dígitos hexadecimais>, com a mesma imagem do compose.
+      imagem:tag@sha256:<64 dígitos hexadecimais>, com a mesma imagem:tag do compose.
     quiet: true
   loop: "{{ oai_cn5g_services | dict2items }}"
   loop_control:

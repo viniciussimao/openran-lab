@@ -49,7 +49,8 @@ O `openran-lab` é um laboratório OpenRAN reproduzível e público, feito para 
 - FlexRIC compilado com gcc-12: o da tag `2026.w46` recusa o gcc-11, padrão do Ubuntu 22.04 (`FlexRIC doesn't support gcc-11`). A futura role `flexric` deve instalar `gcc-12`/`g++-12`, rodar o `cmake` com `CC=gcc-12 CXX=g++-12` num diretório `build` limpo e **não** trocar o compilador padrão da VM, porque o OAI compila com o gcc-11.
 - VMs: box `generic/ubuntu2204`, `cpu_mode = host-passthrough` (o OAI precisa de AVX2).
 - As boxes `generic/*` vêm com DNS fixo e DNSSEC ligado, o que quebra a resolução de nomes atrás do dnsmasq do libvirt. A role `common` corrige isso; não remova.
-- Arquivos do CN5G: `doc/tutorial_resources/oai-cn5g` do próprio repositório do OAI.
+- Arquivos do CN5G: `doc/tutorial_resources/oai-cn5g` do próprio repositório do OAI (na tag fixa: OAI CN5G v2.2.2, 10 serviços).
+- Imagens do CN5G fixadas por digest em `oai_cn5g_image_digests` (`group_vars/all.yml`), no formato `imagem:tag@sha256:...`, aplicadas por um `docker-compose.override.yaml` gerado pela role `oai_cn5g`. Imagens com tag `latest` no compose do OAI (`ims`, `trf-gen-cn5g`) são aceitas só porque o digest é o que vale. Ao trocar a tag do OAI, confira os serviços e atualize os digests.
 - Sintaxe nova do nrUE: `--rfsimulator.[0].serveraddr`.
 - Agente E2 configurado por linha de comando: `--e2_agent.near_ric_ip_addr` e `--e2_agent.sm_dir /usr/local/lib/flexric/`.
 - Nenhum Near-RT RIC open source implementa Y1: o produtor e o consumidor Y1 serão próprios, seguindo o Y1AP, com os desvios documentados.

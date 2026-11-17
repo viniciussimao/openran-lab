@@ -82,7 +82,7 @@ cd ~/oai-cn5g
 docker compose pull
 ```
 
-A role `oai_cn5g` também fixa cada imagem por digest. Ela gera, ao lado do compose, um `docker-compose.override.yaml` com as imagens de `oai_cn5g_image_digests` (`ansible/group_vars/all.yml`). O `docker compose` carrega esse override sozinho, então os comandos abaixo usam as imagens fixadas também quando rodados à mão. Para conferir:
+O compose da tag `2026.w46` usa o OAI CN5G v2.2.2 (AMF, SMF, UPF, NRF, AUSF, UDM, UDR), mais `ims`, `oai-ext-dn` e `mysql`. A role `oai_cn5g` também fixa cada imagem por digest, no formato `imagem:tag@sha256:...`: a tag fica para leitura, o digest é o que vale. Ela gera, ao lado do compose, um `docker-compose.override.yaml` com as imagens de `oai_cn5g_image_digests` (`ansible/group_vars/all.yml`). O `docker compose` carrega esse override sozinho, então os comandos abaixo usam as imagens fixadas também quando rodados à mão. Para conferir:
 
 ```bash
 cd ~/oai-cn5g && docker compose config --images    # todas devem terminar em @sha256:...
