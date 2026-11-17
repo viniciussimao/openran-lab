@@ -1,0 +1,8 @@
+# Gerenciado pelo openran-lab (role oai_cn5g). Não edite: é refeito a
+# cada provisionamento a partir de oai_cn5g_image_digests (group_vars).
+# Fixa cada imagem do core por digest, para o cenário ser reproduzível.
+services:
+{% for service in oai_cn5g_services | sort %}
+  {{ service }}:
+    image: {{ oai_cn5g_image_digests[service] }}
+{% endfor %}

@@ -1,0 +1,19 @@
+---
+# Arquivos do core no repositório do OAI (clonado pela role oai_ran)
+oai_cn5g_src_dir: "{{ oai_src_dir }}/doc/tutorial_resources/oai-cn5g"
+
+# Cópia de trabalho na home do lab_user, onde o docker compose roda
+oai_cn5g_dir: "{{ lab_home }}/oai-cn5g"
+
+# Nomes aceitos para o arquivo principal do compose
+oai_cn5g_compose_names:
+  - docker-compose.yaml
+  - docker-compose.yml
+  - compose.yaml
+  - compose.yml
+
+# Tempo máximo para baixar as imagens e esperar os containers ficarem
+# saudáveis, em segundos (async/poll)
+oai_cn5g_up_timeout: 1800
+oai_cn5g_wait_timeout: 600
+oai_cn5g_poll_interval: 15

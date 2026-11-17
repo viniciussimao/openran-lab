@@ -1,21 +1,37 @@
 # Etapa 1: RAN + core + E2
 
-**Status:** em andamento (guia manual). Os passos validados aqui viram as roles `oai_cn5g`, `oai_ran` e `flexric`.
+**Status:** validada à mão no servidor de teste; passos 1 a 4 automatizados pelas roles `oai_ran`, `flexric` e `oai_cn5g` (validação das roles pendente).
 
 **Objetivo:** uma rede 5G SA completa na VM `ran`, com o gNB conectado ao nearRT-RIC (FlexRIC) pela interface E2.
 
 **Critério de aceite:** o UE pinga o ext-dn do core, e a xApp `xapp_kpm_moni` mostra métricas por UE.
 
+## O que é automático e o que é manual
+
+| Passo | Como |
+| --- | --- |
+| 1. Clonar o OAI na tag fixa e iniciar o submódulo do FlexRIC | Automático (role `oai_ran`) |
+| 2. Compilar gNB e nrUE com o agente E2 | Automático (role `oai_ran`) |
+| 3. Compilar e instalar o FlexRIC com gcc-12 | Automático (role `flexric`) |
+| 4. Preparar o core 5G com as imagens fixadas por digest e subi-lo | Automático (role `oai_cn5g`) |
+| Copiar `configs/ue.conf` para `~/ue.conf` | Automático (role `oai_ran`) |
+| 5. Subir nearRT-RIC, gNB, UE e xApp | **Manual** |
+| 6. Validar | **Manual** |
+
+As roles são idempotentes: o OAI só é recompilado se o commit ou as versões de E2AP/KPM mudarem, e o FlexRIC só se o commit do submódulo, o compilador ou as opções do CMake mudarem. Cada build bem-sucedido deixa um registro em `/var/lib/openran-lab/` (`oai_ran.build` e `flexric.build`); apague o registro para forçar um novo build. Nada é gravado em `/usr/local/lib/flexric/`: o nearRT-RIC e o agente E2 carregam todo arquivo dessa pasta como plugin, e a role `flexric` falha se encontrar lá algo que não seja `.so`. Um build feito à mão, sem esse registro, é refeito uma vez no primeiro provisionamento.
+
+Os passos 1 a 4 continuam descritos abaixo como referência e para quem quiser reproduzi-los à mão.
+
 ## Antes de começar
 
-Suba a VM `ran`. O provisionamento já configura DNS, disco, pacotes base e Docker:
+Suba a VM `ran`. O provisionamento configura DNS, disco, pacotes base e Docker, compila o OAI e o FlexRIC e sobe o core 5G. Os builds levam de dezenas de minutos a mais de uma hora, dependendo do servidor:
 
 ```bash
 vagrant up ran
 vagrant ssh ran
 ```
 
-Os comandos a seguir rodam **dentro da VM**.
+Os comandos a seguir rodam **dentro da VM**. Depois do `vagrant up`, siga direto para o passo 5.
 
 ## 1. Clonar o OAI na versão fixa
 
@@ -66,11 +82,19 @@ cd ~/oai-cn5g
 docker compose pull
 ```
 
+O compose da tag `2026.w46` usa o OAI CN5G v2.2.2 (AMF, SMF, UPF, NRF, AUSF, UDM, UDR), mais `ims`, `oai-ext-dn` e `mysql`. A role `oai_cn5g` também fixa cada imagem por digest, no formato `imagem:tag@sha256:...`: a tag fica para leitura, o digest é o que vale. Ela gera, ao lado do compose, um `docker-compose.override.yaml` com as imagens de `oai_cn5g_image_digests` (`ansible/group_vars/all.yml`). O `docker compose` carrega esse override sozinho, então os comandos abaixo usam as imagens fixadas também quando rodados à mão. Para conferir:
+
+```bash
+cd ~/oai-cn5g && docker compose config --images    # todas devem terminar em @sha256:...
+```
+
 ## 5. Subir o cenário
 
 Use cinco terminais (`vagrant ssh ran` em cada um) ou janelas do `tmux`.
 
 **Terminal 1: core 5G**
+
+O provisionamento já deixa o core no ar. Depois de reiniciar a VM, ou se ele tiver sido derrubado, suba de novo:
 
 ```bash
 cd ~/oai-cn5g && docker compose up -d
@@ -97,11 +121,15 @@ No terminal 2 deve aparecer o E2 Setup do gNB.
 
 **Terminal 4: UE**
 
+O UE usa o `~/ue.conf`, copiado de `configs/ue.conf` pelo provisionamento. Ele define o IMSI, as chaves e a sessão PDU (DNN `oai`, SST 1). Não use o `ue.conf` que vem com o OAI: ele tem outro IMSI e inclui um modelo de canal de satélite LEO.
+
 ```bash
 cd ~/openairinterface5g/cmake_targets/ran_build/build
-sudo ./nr-uesoftmodem -r 106 --numerology 1 --band 78 -C 3619200000 --rfsim \
-  --uicc0.imsi 001010000000001 --rfsimulator.[0].serveraddr 127.0.0.1
+sudo ./nr-uesoftmodem -O ~/ue.conf -r 106 --numerology 1 --band 78 -C 3619200000 --rfsim \
+  --rfsimulator.[0].serveraddr 127.0.0.1
 ```
+
+O UE deve receber um IP (no servidor de teste, `10.0.0.2`) e criar a interface `oaitun_ue1`.
 
 **Terminal 5: xApp de KPM**
 

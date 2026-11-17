@@ -9,3 +9,11 @@
 
 - name: Instalar pacotes base
   ansible.builtin.import_tasks: packages.yml
+
+- name: Criar o diretório de estado do laboratório
+  ansible.builtin.file:
+    path: "{{ lab_state_dir }}"
+    state: directory
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0755"

@@ -4,12 +4,38 @@
 
 # Usuário das VMs criado pela box do Vagrant
 lab_user: vagrant
+lab_home: "/home/{{ lab_user }}"
+
+# Estado do laboratório (registros de idempotência dos builds). Fica fora
+# de qualquer pasta lida pelo OAI ou pelo FlexRIC: o nearRT-RIC e o agente
+# E2 carregam como plugin todo arquivo de /usr/local/lib/flexric/.
+lab_state_dir: /var/lib/openran-lab
 
 # OAI RAN (projeto Duranta, repositório oficial no GitHub)
 oai_repo_url: https://github.com/duranta-project/openairinterface5g.git
 oai_version: "2026.w46"
-oai_commit: "71a5b64cc76a6dbfd59efe87ba288e31f1d2a32d"
+oai_commit: "cb98db5b5d2d95c86673821bfc9fa1be9e225b97"
+oai_src_dir: "{{ lab_home }}/openairinterface5g"
 
 # Versões de E2AP e E2SM-KPM: precisam ser iguais no OAI e no FlexRIC
 e2ap_version: E2AP_V3
 kpm_version: KPM_V3_00
+
+# OAI CN5G v2.2.2: imagens fixadas por digest, uma por serviço do
+# docker-compose.yaml de doc/tutorial_resources/oai-cn5g (na tag acima).
+# Formato: <serviço>: <imagem>:<tag>@sha256:<digest>. A tag fica só para
+# leitura; o digest é o que vale (inclusive nas imagens com tag latest).
+# A role oai_cn5g falha se faltar algum serviço ou se imagem:tag não for a
+# mesma do compose. Digests validados no servidor de teste. Para conferir na VM:
+#   cd ~/oai-cn5g && docker compose config --images | xargs docker image inspect --format '{{json .RepoDigests}}'
+oai_cn5g_image_digests:
+  mysql: mysql:9.6@sha256:c5df04bee1a42b74a5841c6409e669cf62126cd0416f00c1cea8ab933b9361b9
+  ims: oaisoftwarealliance/ims:latest@sha256:54f6677da066128be3f2035a8c1a2e9a0439c8095f9a99199f72a3ebb05da0aa
+  oai-udr: oaisoftwarealliance/oai-udr:v2.2.2@sha256:077c7c9b638c0da809ff03010888f8c3b6845a54b8d3339cb4dc93f00d4259d4
+  oai-udm: oaisoftwarealliance/oai-udm:v2.2.2@sha256:d1dab1494edec5091d2210b7bacebf83ae716b5229005bf3e34ea1ba16c14422
+  oai-ausf: oaisoftwarealliance/oai-ausf:v2.2.2@sha256:6a9703cc39859bdbecf56d3ac6ee98a4f656b03d9e35bef50e3c9995b7cbd876
+  oai-nrf: oaisoftwarealliance/oai-nrf:v2.2.2@sha256:b1e6b45e139d48fd797214ddccb3f80de3898da234455aadc3c231f001d99453
+  oai-amf: oaisoftwarealliance/oai-amf:v2.2.2@sha256:2935c9a8b4720aeb55367ca9aa038ff2c98c3cf557572ad41db1caa0bb6c58ab
+  oai-smf: oaisoftwarealliance/oai-smf:v2.2.2@sha256:6f7a499255d05c292611065e13e7022ebe5c65a55e90a75b0448578f6fb1518b
+  oai-upf: oaisoftwarealliance/oai-upf:v2.2.2@sha256:4ebdb0f7b5e4cab6880c0c95db6c92ea566906b7bbe311665bbc3f586781073c
+  oai-ext-dn: oaisoftwarealliance/trf-gen-cn5g:latest@sha256:3f9ab2e401d2a010b568e78db087b5d1526b8756f1056087939116f6138340a6

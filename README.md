@@ -4,13 +4,13 @@ Laboratório OpenRAN reproduzível para estudo e pesquisa: gNB e UE do OpenAirIn
 
 O objetivo final é um cenário em que o consumidor de um slice acompanha dados da RAN num dashboard (via interface **Y1**) e, com um botão, pede mais recursos. O pedido percorre o caminho O-RAN (SMO → rApp → **A1** → xApp → **E2**) até o gNB.
 
-> **Status:** em desenvolvimento. A Etapa 1 está em andamento. Veja o [roadmap](docs/roadmap.md).
+> **Status:** em desenvolvimento. A Etapa 1 foi validada à mão e as roles que a automatizam estão em validação. Veja o [roadmap](docs/roadmap.md).
 
 ## Status das etapas
 
 | Etapa | Entrega | Status |
 | --- | --- | --- |
-| 1 | RAN + core + E2 (OAI gNB/nrUE em rfsim, OAI CN5G, FlexRIC) | Em andamento |
+| 1 | RAN + core + E2 (OAI gNB/nrUE em rfsim, OAI CN5G, FlexRIC) | Validada à mão; automação em validação |
 | 2 | Multi-slice (dois slices, dois UEs, xApp de slicing) | Planejada |
 | 3 | Interface Y1 (produtor e consumidor com mTLS) | Planejada |
 | 4 | Observabilidade (OpenTelemetry, Prometheus, Grafana) | Planejada |
@@ -68,7 +68,7 @@ vagrant up                         # cria e provisiona as VMs habilitadas
 vagrant ssh ran                    # entra na VM da RAN
 ```
 
-Enquanto a Etapa 1 não estiver automatizada, a instalação de OAI, CN5G e FlexRIC dentro da VM segue o guia manual em [docs/stages/01-ran-core-e2.md](docs/stages/01-ran-core-e2.md).
+O `vagrant up` compila o OAI e o FlexRIC e sobe o core 5G na VM `ran` (isso pode levar mais de uma hora). Subir o nearRT-RIC, o gNB, o UE e a xApp continua manual: siga o passo 5 do guia da Etapa 1 em [docs/stages/01-ran-core-e2.md](docs/stages/01-ran-core-e2.md).
 
 ## Configuração
 
@@ -94,8 +94,9 @@ Para que o cenário seja reproduzível, as versões ficam fixas em [`ansible/gro
 
 | Componente | Versão |
 | --- | --- |
-| OAI RAN (Duranta) | tag `2026.w46` (commit `71a5b64c`) |
-| FlexRIC | submódulo da tag do OAI |
+| OAI RAN (Duranta) | tag `2026.w46` (commit `cb98db5b`) |
+| FlexRIC | submódulo da tag do OAI (compilado com gcc-12) |
+| OAI CN5G | v2.2.2 (imagens fixadas por digest) |
 | E2AP / E2SM-KPM | v3 / v3.00 (iguais no OAI e no FlexRIC) |
 | SO das VMs | Ubuntu 22.04 (`generic/ubuntu2204`) |
 
@@ -111,7 +112,9 @@ openran-lab/
 │   ├── ansible.cfg
 │   ├── site.yml             # playbook principal
 │   ├── group_vars/all.yml   # versões fixas
-│   └── roles/               # common, docker (e as próximas etapas)
+│   └── roles/               # common, docker, oai_ran, flexric, oai_cn5g
+├── configs/
+│   └── ue.conf              # configuração do nrUE (copiada para a VM)
 ├── scripts/
 │   └── preflight.sh         # verificação do host
 └── docs/

@@ -1,0 +1,97 @@
+---
+# Role oai_cn5g: copia os arquivos do core do repositório do OAI, fixa as
+# imagens por digest e sobe o core com o docker compose
+# (passos 4 e 5 de docs/stages/01-ran-core-e2.md). Depende da role oai_ran.
+
+- name: Copiar os arquivos do CN5G para a home do lab_user
+  ansible.builtin.copy:
+    src: "{{ oai_cn5g_src_dir }}/"
+    dest: "{{ oai_cn5g_dir }}/"
+    remote_src: true
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: preserve
+
+- name: Localizar o arquivo principal do compose
+  ansible.builtin.find:
+    paths: "{{ oai_cn5g_dir }}"
+    patterns: "{{ oai_cn5g_compose_names }}"
+  register: oai_cn5g_compose_files
+
+- name: Conferir se há um único arquivo de compose
+  ansible.builtin.assert:
+    that:
+      - oai_cn5g_compose_files.matched == 1
+    fail_msg: >-
+      Esperava um arquivo de compose em {{ oai_cn5g_dir }} e achei
+      {{ oai_cn5g_compose_files.matched }}.
+    quiet: true
+
+- name: Ler o arquivo de compose do CN5G
+  ansible.builtin.slurp:
+    src: "{{ oai_cn5g_compose_files.files[0].path }}"
+  register: oai_cn5g_compose_raw
+
+- name: Listar os serviços do compose
+  ansible.builtin.set_fact:
+    oai_cn5g_services: "{{ (oai_cn5g_compose_raw.content | b64decode | from_yaml).services }}"
+    oai_cn5g_compose_file: "{{ oai_cn5g_compose_files.files[0].path | basename }}"
+
+# Cada serviço precisa de um digest no group_vars, com a mesma imagem:tag
+# que o compose do OAI usa (imagem:tag@sha256:digest)
+- name: Conferir os digests de cada serviço
+  ansible.builtin.assert:
+    that:
+      - item.key in oai_cn5g_image_digests
+      - oai_cn5g_image_digests[item.key] is regex('@sha256:[0-9a-f]{64}$')
+      - (oai_cn5g_image_digests[item.key] | regex_replace('@sha256:.*$', '')) == item.value.image
+    fail_msg: >-
+      O serviço {{ item.key }} (imagem {{ item.value.image | default('?') }}) precisa
+      de uma entrada em oai_cn5g_image_digests no formato
+      imagem:tag@sha256:<64 dígitos hexadecimais>, com a mesma imagem:tag do compose.
+    quiet: true
+  loop: "{{ oai_cn5g_services | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+# O nome segue o arquivo principal (docker-compose.yaml ->
+# docker-compose.override.yaml), para o docker compose carregar o override
+# sozinho, inclusive quando o core é subido à mão
+- name: Gerar o override do compose com as imagens fixadas
+  ansible.builtin.template:
+    src: compose.override.yml.j2
+    dest: >-
+      {{ oai_cn5g_dir }}/{{ oai_cn5g_compose_file | splitext | first }}.override{{ oai_cn5g_compose_file | splitext | last }}
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0644"
+
+- name: Listar as imagens que o docker compose vai usar
+  ansible.builtin.command:
+    cmd: docker compose config --images
+    chdir: "{{ oai_cn5g_dir }}"
+  register: oai_cn5g_images
+  changed_when: false
+  become: true
+  become_user: "{{ lab_user }}"
+
+- name: Conferir se todas as imagens estão fixadas por digest
+  ansible.builtin.assert:
+    that:
+      - oai_cn5g_images.stdout_lines | length > 0
+      - oai_cn5g_images.stdout_lines | reject('search', '@sha256:[0-9a-f]{64}$') | list | length == 0
+    fail_msg: >-
+      O docker compose não aplicou o override: imagens sem digest:
+      {{ oai_cn5g_images.stdout_lines | reject('search', '@sha256:') | list }}
+    quiet: true
+
+- name: Subir o core 5G e esperar os containers ficarem saudáveis
+  ansible.builtin.command:
+    cmd: docker compose up -d --wait --wait-timeout {{ oai_cn5g_wait_timeout }}
+    chdir: "{{ oai_cn5g_dir }}"
+  async: "{{ oai_cn5g_up_timeout }}"
+  poll: "{{ oai_cn5g_poll_interval }}"
+  register: oai_cn5g_up
+  changed_when: oai_cn5g_up.stderr is search('(Created|Recreated|Started|Pulled)')
+  become: true
+  become_user: "{{ lab_user }}"

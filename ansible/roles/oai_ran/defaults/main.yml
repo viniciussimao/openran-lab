@@ -1,0 +1,26 @@
+---
+# Diretório onde o build_oai gera os binários do gNB e do nrUE
+oai_ran_build_dir: "{{ oai_src_dir }}/cmake_targets/ran_build/build"
+
+# Binários que precisam existir para o build ser considerado pronto
+oai_ran_binaries:
+  - nr-softmodem
+  - nr-uesoftmodem
+
+# Arquivo que registra o commit e as opções do último build bem-sucedido.
+# Se ele bater com o esperado e os binários existirem, o build é pulado.
+oai_ran_build_stamp: "{{ lab_state_dir }}/oai_ran.build"
+
+# Registro antigo, de antes do diretório de estado. É lido uma vez (para
+# não recompilar à toa) e apagado.
+oai_ran_legacy_build_stamp: "{{ oai_ran_build_dir }}/.openran-lab-build"
+oai_ran_build_id: "{{ oai_commit }} {{ e2ap_version }} {{ kpm_version }}"
+
+# Limites dos builds longos, em segundos (async/poll)
+oai_ran_deps_timeout: 3600
+oai_ran_build_timeout: 7200
+oai_ran_poll_interval: 30
+
+# Configuração do nrUE copiada para a home do lab_user
+oai_ran_ue_conf_src: "{{ playbook_dir }}/../configs/ue.conf"
+oai_ran_ue_conf_dest: "{{ lab_home }}/ue.conf"
