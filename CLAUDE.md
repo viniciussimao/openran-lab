@@ -59,6 +59,10 @@ O `openran-lab` é um laboratório OpenRAN reproduzível e público, feito para 
 - Sintaxe nova do nrUE: `--rfsimulator.[0].serveraddr`.
 - O nrUE roda com `-O ~/ue.conf` (de `configs/ue.conf`, copiado pela role `oai_ran`) e **sem** `--uicc0.imsi`. Sem o arquivo, o UE registra mas não pede sessão PDU (`[SIM] no PDU sessions to request configured`) e a `oaitun_ue1` não sobe. O `ue.conf` que vem com o OAI não serve: tem outro IMSI e um modelo de canal de satélite LEO. IMSI, chave e OPc são os valores de teste públicos do tutorial do CN5G.
 - Saúde do core: o healthcheck dos containers do CN5G não basta. No teste de aceite da Etapa 1, o `oai-smf` v2.2.2 travou (log parado, sem heartbeats para o NRF nem PFCP com o UPF) e continuou `healthy`; a AMF não achou SMF (`no SMF candidate is available`). Na automação da Etapa 7, a verificação de saúde do core deve conferir o registro dos NFs no NRF (por exemplo, um NF discovery de SMF que retorne endereço válido), e não só o `healthy` do Docker. Caso em `docs/troubleshooting.md`.
+- Script de subida da Etapa 7 (RIC, gNB, UE e xApp): deve tratar os três casos observados nos testes da Etapa 1, todos em `docs/troubleshooting.md`:
+  - depois de o core ficar `healthy`, esperar de 30 a 60 segundos (ou, melhor, até o NF discovery de SMF no NRF responder) antes de subir o gNB, porque o SMF ainda conclui o registro no NRF;
+  - RIC, gNB e UE encerrados com Ctrl+C deixam o contexto do UE no core: se o UE não receber a sessão PDU, reiniciar o core (`docker compose down` e `docker compose up -d --wait`) e tentar de novo;
+  - o nrUE leva de alguns segundos a mais de 20 para criar a `oaitun_ue1`: esperar a linha `TUN Interface oaitun_ue1 successfully configured` no log do UE, com timeout, e nunca usar um tempo fixo.
 - Na Etapa 1 o slice do UE saiu como `1.ffffff` (SST 1, SD padrão), porque o `ue.conf` só define `nssai_sst`. Na Etapa 2 (multi-slice), o SD deve ser explícito no UE, no gNB e no core.
 - Agente E2 configurado por linha de comando: `--e2_agent.near_ric_ip_addr` e `--e2_agent.sm_dir /usr/local/lib/flexric/`.
 - Nenhum Near-RT RIC open source implementa Y1: o produtor e o consumidor Y1 serão próprios, seguindo o Y1AP, com os desvios documentados.
@@ -73,9 +77,12 @@ O `openran-lab` é um laboratório OpenRAN reproduzível e público, feito para 
 
 ## Estado atual
 
-- Etapa 1 (RAN + core + E2) validada à mão no servidor: `ping` do UE 5/5, E2 Setup aceito com KPM/RC/CCC/SLICE_STATS, `xapp_kpm_moni` OK. Guia em `docs/stages/01-ran-core-e2.md`.
-- Roles `common` (DNS, disco, pacotes) e `docker` validadas no servidor de teste em 2026-11-17: `vagrant up ran` com `failed=0`, disco estendido de 62 para 124 GB, Docker 29.10.0 e DNS em `192.168.121.1`.
-- Roles `oai_ran`, `flexric` e `oai_cn5g` escritas (passos 1 a 4 do guia) e habilitadas para o grupo `ran`; **validação no servidor pendente**. Subir RIC, gNB, UE e xApp continua manual. A Etapa 1 só fecha (release `v0.1.0`) depois de as roles passarem num `vagrant up` do zero e o critério de aceite ser repetido.
+- **Etapa 1 (RAN + core + E2) concluída: release `v0.1.0`.** Guia em `docs/stages/01-ran-core-e2.md`.
+  - Critério de aceite: `ping` do UE 5/5, E2 Setup aceito com KPM/RC/CCC/SLICE_STATS, `xapp_kpm_moni` OK.
+  - Roles `common` (DNS, disco, pacotes) e `docker` validadas no servidor de teste em 2026-11-17: `vagrant up ran` com `failed=0`, disco estendido de 62 para 124 GB, Docker 29.10.0 e DNS em `192.168.121.1`.
+  - Roles `oai_ran`, `flexric` e `oai_cn5g` (passos 1 a 4 do guia) validadas no servidor: dois `vagrant provision` (o segundo com `changed=0`) e um `vagrant destroy`/`vagrant up` do zero, seguido do critério de aceite.
+  - Subir RIC, gNB, UE e xApp continua manual; a automação disso é da Etapa 7.
+- Próxima: Etapa 2 (multi-slice).
 - Medições da validação manual (servidor de teste, rfsim):
   - o gNB expõe, no E2 Setup, os RAN functions E2SM-KPM, **E2SM-RC (ID 3)**, CCC e **SLICE_STATS_V0 (ID 145)**. Como o OAI suporta E2SM-RC, a xApp de slicing deve usá-lo (veja "Etapa 8 e artigos");
   - latência das indicações KPM observada no `xapp_kpm_moni`: cerca de 0,6 ms por UE e de 15 a 46 ms por célula.

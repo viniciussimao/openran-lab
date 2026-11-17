@@ -6,7 +6,14 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não publicado]
 
+## [0.1.0] - 2026-11-17
+
+Etapa 1 concluída: RAN + core 5G + E2 numa VM, com OAI `2026.w46` (commit `cb98db5b`), FlexRIC do submódulo da tag (gcc-12), OAI CN5G v2.2.2 e E2AP v3/KPM v3.00. Testado com libvirt 10.0.0 e ansible-core 2.21.5.
+
 ### Adicionado
+
+- Roles `oai_ran`, `flexric` e `oai_cn5g` validadas no servidor de teste: dois `vagrant provision` (o segundo com `changed=0`) e um `vagrant destroy`/`vagrant up` do zero, seguido do critério de aceite (`ping` 5/5 e `xapp_kpm_moni`).
+- Solução de problemas e guia da Etapa 1: espera de 30 a 60 segundos entre o core ficar `healthy` e a subida do gNB (SMF ainda se registrando no NRF); reinício do core quando o UE deixa de receber a sessão PDU depois de várias reinicializações com Ctrl+C; espera pela linha `TUN Interface oaitun_ue1 successfully configured` no log do UE (`| tee /tmp/ue.log` e `timeout 90 tail -f ... | grep -m1`) em vez de um tempo fixo. CLAUDE.md: o script de subida da Etapa 7 deve tratar os três casos.
 
 - Estrutura inicial do repositório: README, licença Apache-2.0, guia de contribuição e política de segurança.
 - `Vagrantfile` configurável por `config.yml` (VMs, recursos e rede de gerenciamento), com VMs nomeadas `openran-ran`, `openran-obs` e `openran-smo`.
@@ -39,3 +46,6 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 - Role `flexric`: o registro de idempotência era gravado em `/usr/local/lib/flexric/`, de onde o nearRT-RIC e o agente E2 carregam todo arquivo como plugin; o nearRT-RIC abortava (`Not valid path for the SM plugins`). Os registros de `flexric` e `oai_ran` passam para `/var/lib/openran-lab/` (`lab_state_dir`, criado pela role `common`). Os registros antigos são aproveitados uma vez e apagados, para VMs já provisionadas se corrigirem sem recompilar. A role `flexric` agora falha se `/usr/local/lib/flexric/` tiver algo além de `.so`. O caso foi incluído em `docs/troubleshooting.md`.
 - `oai_commit` passa a ser `cb98db5b5d2d95c86673821bfc9fa1be9e225b97`, o commit da tag `2026.w46`. O valor anterior (`71a5b64c…`) era o hash do objeto da tag anotada, e a asserção da role `oai_ran` parou o provisionamento. README e CLAUDE.md corrigidos; o caso foi incluído em `docs/troubleshooting.md`.
+
+[Não publicado]: https://github.com/viniciussimao/openran-lab/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/viniciussimao/openran-lab/releases/tag/v0.1.0

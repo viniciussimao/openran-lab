@@ -1,6 +1,6 @@
 # Etapa 1: RAN + core + E2
 
-**Status:** validada à mão no servidor de teste; passos 1 a 4 automatizados pelas roles `oai_ran`, `flexric` e `oai_cn5g` (validação das roles pendente).
+**Status:** concluída (release `v0.1.0`). Os passos 1 a 4 são automatizados pelas roles `oai_ran`, `flexric` e `oai_cn5g`, validadas no servidor de teste com dois `vagrant provision` (o segundo com `changed=0`) e um `vagrant destroy`/`vagrant up` do zero seguido do critério de aceite.
 
 **Objetivo:** uma rede 5G SA completa na VM `ran`, com o gNB conectado ao nearRT-RIC (FlexRIC) pela interface E2.
 
@@ -101,6 +101,14 @@ cd ~/oai-cn5g && docker compose up -d
 docker compose ps    # aguarde todos os containers ficarem "healthy"
 ```
 
+Depois de todos os containers ficarem `healthy`, espere de 30 a 60 segundos antes de subir o gNB. Nesse intervalo o SMF ainda conclui o registro no NRF, e a AMF pode não encontrar SMF (`SMF Selection, no SMF candidate is available`), deixando o UE sem sessão PDU.
+
+Se você já encerrou RIC, gNB e UE com Ctrl+C várias vezes, o core guarda o contexto do UE antigo. Se o UE deixar de receber a sessão PDU depois de algumas reinicializações, reinicie o core antes de subir o gNB e o UE de novo:
+
+```bash
+cd ~/oai-cn5g && docker compose down && docker compose up -d --wait
+```
+
 **Terminal 2: nearRT-RIC**
 
 ```bash
@@ -126,10 +134,16 @@ O UE usa o `~/ue.conf`, copiado de `configs/ue.conf` pelo provisionamento. Ele d
 ```bash
 cd ~/openairinterface5g/cmake_targets/ran_build/build
 sudo ./nr-uesoftmodem -O ~/ue.conf -r 106 --numerology 1 --band 78 -C 3619200000 --rfsim \
-  --rfsimulator.[0].serveraddr 127.0.0.1
+  --rfsimulator.[0].serveraddr 127.0.0.1 | tee /tmp/ue.log
 ```
 
-O UE deve receber um IP (no servidor de teste, `10.0.0.2`) e criar a interface `oaitun_ue1`.
+O UE deve receber um IP (no servidor de teste, `10.0.0.2`) e criar a interface `oaitun_ue1`. Entre iniciar o nrUE e a interface existir passam de alguns segundos a mais de 20 (sincronização, registro e sessão PDU). Não use um tempo fixo: espere pela linha `TUN Interface oaitun_ue1 successfully configured` no log, por exemplo em outro terminal:
+
+```bash
+timeout 90 tail -f /tmp/ue.log | grep -m1 "oaitun_ue1 successfully configured"
+```
+
+Se o comando terminar sem imprimir a linha, o UE não recebeu a sessão PDU em 90 segundos: veja os casos de execução em [docs/troubleshooting.md](../troubleshooting.md).
 
 **Terminal 5: xApp de KPM**
 
