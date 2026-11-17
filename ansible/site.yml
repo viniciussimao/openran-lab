@@ -9,12 +9,12 @@
     - common
     - docker
 
-# Etapa 1 (em andamento): as roles abaixo entram quando o passo manual
-# correspondente estiver validado (veja docs/stages/01-ran-core-e2.md).
-# - name: RAN, core 5G e Near-RT RIC
-#   hosts: ran
-#   become: true
-#   roles:
-#     - oai_cn5g
-#     - oai_ran
-#     - flexric
+# Etapa 1: a ordem segue docs/stages/01-ran-core-e2.md. O oai_ran clona o
+# OAI, de onde o flexric (submódulo) e o oai_cn5g (arquivos do core) saem.
+- name: RAN, core 5G e Near-RT RIC
+  hosts: ran
+  become: true
+  roles:
+    - oai_ran
+    - flexric
+    - oai_cn5g

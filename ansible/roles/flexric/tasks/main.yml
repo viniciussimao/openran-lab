@@ -1,0 +1,90 @@
+---
+# Role flexric: compila e instala o FlexRIC do submódulo do OAI
+# (passo 3 de docs/stages/01-ran-core-e2.md). Depende da role oai_ran.
+
+- name: Instalar o gcc-12 e o g++-12
+  ansible.builtin.apt:
+    name: "{{ flexric_compiler_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ler o commit do submódulo do FlexRIC
+  ansible.builtin.command: git -C {{ flexric_src_dir }} rev-parse HEAD
+  register: flexric_head
+  changed_when: false
+  become: true
+  become_user: "{{ lab_user }}"
+
+- name: Montar o identificador do build do FlexRIC
+  ansible.builtin.set_fact:
+    flexric_build_id: >-
+      {{ flexric_head.stdout | trim }} {{ flexric_cc }}/{{ flexric_cxx }} {{ flexric_cmake_options | join(' ') }}
+
+- name: Verificar os service models instalados
+  ansible.builtin.find:
+    paths: "{{ flexric_sm_dir }}"
+    patterns: "*.so"
+  register: flexric_installed_sms
+
+- name: Ler o registro do último build do FlexRIC
+  ansible.builtin.slurp:
+    src: "{{ flexric_build_stamp }}"
+  register: flexric_stamp_current
+  failed_when: false
+
+- name: Decidir se o FlexRIC precisa ser compilado
+  ansible.builtin.set_fact:
+    flexric_build_needed: >-
+      {{ (flexric_installed_sms.matched == 0)
+         or ((flexric_stamp_current.content | default('') | b64decode | trim) != flexric_build_id) }}
+
+- name: Compilar e instalar o FlexRIC
+  when: flexric_build_needed | bool
+  block:
+    # O CMake guarda o compilador no cache: o build começa sempre do zero
+    - name: Apagar o diretório de build anterior
+      ansible.builtin.file:
+        path: "{{ flexric_build_dir }}"
+        state: absent
+
+    - name: Criar o diretório de build
+      ansible.builtin.file:
+        path: "{{ flexric_build_dir }}"
+        state: directory
+        owner: "{{ lab_user }}"
+        group: "{{ lab_user }}"
+        mode: "0755"
+
+    - name: Configurar o FlexRIC com o CMake (gcc-12)
+      ansible.builtin.command:
+        cmd: cmake {{ flexric_cmake_options | join(' ') }} ..
+        chdir: "{{ flexric_build_dir }}"
+      environment:
+        CC: "{{ flexric_cc }}"
+        CXX: "{{ flexric_cxx }}"
+      changed_when: true
+      become: true
+      become_user: "{{ lab_user }}"
+
+    - name: Compilar o FlexRIC
+      ansible.builtin.command:
+        cmd: make -j{{ ansible_facts['processor_vcpus'] }}
+        chdir: "{{ flexric_build_dir }}"
+      async: "{{ flexric_build_timeout }}"
+      poll: "{{ flexric_poll_interval }}"
+      changed_when: true
+      become: true
+      become_user: "{{ lab_user }}"
+
+    - name: Instalar o FlexRIC e os service models
+      ansible.builtin.command:
+        cmd: make install
+        chdir: "{{ flexric_build_dir }}"
+      changed_when: true
+
+    - name: Registrar o build instalado
+      ansible.builtin.copy:
+        dest: "{{ flexric_build_stamp }}"
+        content: "{{ flexric_build_id }}\n"
+        mode: "0644"

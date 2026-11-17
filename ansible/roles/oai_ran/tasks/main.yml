@@ -1,0 +1,99 @@
+---
+# Role oai_ran: clona o OAI na versão fixa e compila gNB e nrUE com o
+# agente E2 (passos 1 e 2 de docs/stages/01-ran-core-e2.md).
+# Tudo roda como o lab_user; só o build_oai -I usa sudo internamente.
+
+- name: Clonar o OAI na tag fixa
+  ansible.builtin.git:
+    repo: "{{ oai_repo_url }}"
+    dest: "{{ oai_src_dir }}"
+    version: "{{ oai_version }}"
+    # Não mexe num clone existente; o commit é conferido logo abaixo
+    update: false
+  become: true
+  become_user: "{{ lab_user }}"
+
+- name: Ler o commit do clone do OAI
+  ansible.builtin.command: git -C {{ oai_src_dir }} rev-parse HEAD
+  register: oai_ran_head
+  changed_when: false
+  become: true
+  become_user: "{{ lab_user }}"
+
+- name: Conferir se o clone está no commit fixo
+  ansible.builtin.assert:
+    that:
+      - oai_ran_head.stdout | trim == oai_commit
+    fail_msg: >-
+      O clone em {{ oai_src_dir }} está no commit {{ oai_ran_head.stdout | trim }},
+      mas o esperado é {{ oai_commit }} (tag {{ oai_version }}).
+      Faça o checkout da tag à mão ou apague o diretório e provisione de novo.
+    quiet: true
+
+- name: Iniciar o submódulo do FlexRIC
+  ansible.builtin.command:
+    cmd: git submodule update --init openair2/E2AP/flexric
+    chdir: "{{ oai_src_dir }}"
+  register: oai_ran_submodule
+  # Sem saída quando o submódulo já está no commit certo
+  changed_when: (oai_ran_submodule.stdout ~ oai_ran_submodule.stderr) | trim | length > 0
+  become: true
+  become_user: "{{ lab_user }}"
+
+- name: Verificar os binários do OAI
+  ansible.builtin.stat:
+    path: "{{ oai_ran_build_dir }}/{{ item }}"
+  loop: "{{ oai_ran_binaries }}"
+  register: oai_ran_binaries_stat
+
+- name: Ler o registro do último build do OAI
+  ansible.builtin.slurp:
+    src: "{{ oai_ran_build_stamp }}"
+  register: oai_ran_stamp_current
+  failed_when: false
+
+- name: Decidir se o OAI precisa ser compilado
+  ansible.builtin.set_fact:
+    oai_ran_build_needed: >-
+      {{ (oai_ran_binaries_stat.results | rejectattr('stat.exists') | list | length > 0)
+         or ((oai_ran_stamp_current.content | default('') | b64decode | trim) != oai_ran_build_id) }}
+
+- name: Compilar o OAI
+  when: oai_ran_build_needed | bool
+  become: true
+  become_user: "{{ lab_user }}"
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  block:
+    - name: Instalar as dependências do OAI (build_oai -I)
+      ansible.builtin.command:
+        cmd: ./build_oai -I
+        chdir: "{{ oai_src_dir }}/cmake_targets"
+      async: "{{ oai_ran_deps_timeout }}"
+      poll: "{{ oai_ran_poll_interval }}"
+      changed_when: true
+
+    - name: Compilar gNB e nrUE com o agente E2
+      ansible.builtin.command:
+        cmd: >-
+          ./build_oai -w SIMU --gNB --nrUE --build-e2 --ninja
+          --cmake-opt -DE2AP_VERSION={{ e2ap_version }}
+          --cmake-opt -DKPM_VERSION={{ kpm_version }}
+        chdir: "{{ oai_src_dir }}/cmake_targets"
+      async: "{{ oai_ran_build_timeout }}"
+      poll: "{{ oai_ran_poll_interval }}"
+      changed_when: true
+
+    - name: Registrar o commit e as opções do build
+      ansible.builtin.copy:
+        dest: "{{ oai_ran_build_stamp }}"
+        content: "{{ oai_ran_build_id }}\n"
+        mode: "0644"
+
+- name: Copiar a configuração do nrUE para a home do lab_user
+  ansible.builtin.copy:
+    src: "{{ oai_ran_ue_conf_src }}"
+    dest: "{{ oai_ran_ue_conf_dest }}"
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0644"

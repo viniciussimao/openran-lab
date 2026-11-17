@@ -64,8 +64,12 @@ O `openran-lab` é um laboratório OpenRAN reproduzível e público, feito para 
 
 ## Estado atual
 
-- Etapa 1 (RAN + core + E2) em andamento: guia manual em `docs/stages/01-ran-core-e2.md`.
-- Automatizado até agora: roles `common` (DNS, disco, pacotes) e `docker`. Validadas no servidor de teste em 2026-11-17: `vagrant up ran` com `failed=0`, disco estendido de 62 para 124 GB, Docker 29.10.0 e DNS em `192.168.121.1`.
+- Etapa 1 (RAN + core + E2) validada à mão no servidor: `ping` do UE 5/5, E2 Setup aceito com KPM/RC/CCC/SLICE_STATS, `xapp_kpm_moni` OK. Guia em `docs/stages/01-ran-core-e2.md`.
+- Roles `common` (DNS, disco, pacotes) e `docker` validadas no servidor de teste em 2026-11-17: `vagrant up ran` com `failed=0`, disco estendido de 62 para 124 GB, Docker 29.10.0 e DNS em `192.168.121.1`.
+- Roles `oai_ran`, `flexric` e `oai_cn5g` escritas (passos 1 a 4 do guia) e habilitadas para o grupo `ran`; **validação no servidor pendente**. Subir RIC, gNB, UE e xApp continua manual. A Etapa 1 só fecha (release `v0.1.0`) depois de as roles passarem num `vagrant up` do zero e o critério de aceite ser repetido.
+- Medições da validação manual (servidor de teste, rfsim):
+  - o gNB expõe, no E2 Setup, os RAN functions E2SM-KPM, **E2SM-RC (ID 3)**, CCC e **SLICE_STATS_V0 (ID 145)**. Como o OAI suporta E2SM-RC, a xApp de slicing deve usá-lo (veja "Etapa 8 e artigos");
+  - latência das indicações KPM observada no `xapp_kpm_moni`: cerca de 0,6 ms por UE e de 15 a 46 ms por célula.
 
 ## Ao concluir uma tarefa ou etapa
 

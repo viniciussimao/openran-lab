@@ -1,0 +1,29 @@
+---
+# O FlexRIC é o submódulo da tag do OAI (role oai_ran)
+flexric_src_dir: "{{ oai_src_dir }}/openair2/E2AP/flexric"
+flexric_build_dir: "{{ flexric_src_dir }}/build"
+
+# O FlexRIC da tag 2026.w46 recusa o gcc-11, padrão do Ubuntu 22.04.
+# Só o FlexRIC usa o gcc-12; o compilador padrão da VM não muda.
+flexric_compiler_packages:
+  - gcc-12
+  - g++-12
+flexric_cc: gcc-12
+flexric_cxx: g++-12
+
+# Opções do CMake (as versões de E2AP e KPM vêm do group_vars)
+flexric_cmake_options:
+  - -DXAPP_MULTILANGUAGE=OFF
+  - -DE2AP_VERSION={{ e2ap_version }}
+  - -DKPM_VERSION={{ kpm_version }}
+
+# Diretório dos service models instalados pelo make install
+flexric_sm_dir: /usr/local/lib/flexric
+
+# Registro do último build instalado. Se bater com o esperado e os
+# service models estiverem instalados, o build é pulado.
+flexric_build_stamp: "{{ flexric_sm_dir }}/.openran-lab-build"
+
+# Limite do build, em segundos (async/poll)
+flexric_build_timeout: 3600
+flexric_poll_interval: 30
