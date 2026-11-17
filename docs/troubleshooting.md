@@ -20,6 +20,7 @@ Problemas encontrados durante a montagem do laboratório e como resolvê-los.
 | `Cannot call Open vSwitch: ovsdb-server.service is not running` no provisionamento | Aviso do `netplan apply` | Ignorar |
 | Pouco espaço em `/` dentro da VM | O LVM da box não usa o disco inteiro | Já tratado pela role `common` (`lvextend -r -l +100%FREE`) |
 | OAI lento ou sem otimizações de CPU | VM sem AVX2 | Confirmar `cpu_mode = "host-passthrough"` e `grep avx2 /proc/cpuinfo` na VM |
+| `vagrant provision` para em "Conferir se o clone está no commit fixo", com o clone num commit diferente de `oai_commit` | `oai_commit` com o hash do objeto de uma tag anotada, e não do commit da tag | Obter o commit com `git ls-remote <url> 'refs/tags/<tag>^{}'` ou, num clone, `git rev-parse '<tag>^{commit}'`, e corrigir `oai_commit` em `ansible/group_vars/all.yml`. O `refs/tags/<tag>` de uma tag anotada não serve |
 
 ## Compilação
 

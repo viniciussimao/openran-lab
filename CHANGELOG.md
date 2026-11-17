@@ -32,3 +32,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Guia da Etapa 1: tabela do que é automático (passos 1 a 4) e do que continua manual (subir RIC, gNB, UE e xApp, e validar).
 - Guia da Etapa 1: o FlexRIC passa a ser compilado com gcc-12 (`CC=gcc-12 CXX=g++-12`, num diretório `build` limpo), porque o da tag `2026.w46` recusa o gcc-11 do Ubuntu 22.04. O OAI continua com o gcc-11. O caso foi incluído em `docs/troubleshooting.md`.
 - Etapa 6: o lado Near-RT do A1 passa a ser uma terminação A1-P seguindo a OpenAPI do A1AP; O1 usa componentes prontos (O1 Adapter do OAI e OAM da O-RAN SC).
+
+### Corrigido
+
+- `oai_commit` passa a ser `cb98db5b5d2d95c86673821bfc9fa1be9e225b97`, o commit da tag `2026.w46`. O valor anterior (`71a5b64c…`) era o hash do objeto da tag anotada, e a asserção da role `oai_ran` parou o provisionamento. README e CLAUDE.md corrigidos; o caso foi incluído em `docs/troubleshooting.md`.

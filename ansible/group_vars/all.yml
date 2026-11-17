@@ -9,7 +9,7 @@ lab_home: "/home/{{ lab_user }}"
 # OAI RAN (projeto Duranta, repositório oficial no GitHub)
 oai_repo_url: https://github.com/duranta-project/openairinterface5g.git
 oai_version: "2026.w46"
-oai_commit: "71a5b64cc76a6dbfd59efe87ba288e31f1d2a32d"
+oai_commit: "cb98db5b5d2d95c86673821bfc9fa1be9e225b97"
 oai_src_dir: "{{ lab_home }}/openairinterface5g"
 
 # Versões de E2AP e E2SM-KPM: precisam ser iguais no OAI e no FlexRIC

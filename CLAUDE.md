@@ -43,7 +43,8 @@ O `openran-lab` é um laboratório OpenRAN reproduzível e público, feito para 
 ## Decisões técnicas já tomadas
 
 - Repositório oficial do OAI: `https://github.com/duranta-project/openairinterface5g.git`. O GitLab da EURECOM é um espelho.
-- Versão fixa: tag `2026.w46` (commit `71a5b64cc76a6dbfd59efe87ba288e31f1d2a32d`). O FlexRIC usado é o submódulo dessa tag (`openair2/E2AP/flexric`).
+- Versão fixa: tag `2026.w46` (commit `cb98db5b5d2d95c86673821bfc9fa1be9e225b97`). O FlexRIC usado é o submódulo dessa tag (`openair2/E2AP/flexric`).
+- Tags anotadas: o `oai_commit` é o hash do **commit** da tag, não o do objeto da tag. Obtenha-o com `git ls-remote <url> 'refs/tags/<tag>^{}'` ou `git rev-parse '<tag>^{commit}'`. O `refs/tags/<tag>` de uma tag anotada aponta para o objeto da tag (`git cat-file -t` retorna `tag`); na `2026.w46` esse objeto é `71a5b64c…`. A role `oai_ran` confere o commit do clone e para se ele não bater.
 - E2AP v3 e E2SM-KPM v3.00 nos dois lados (`-DE2AP_VERSION=E2AP_V3 -DKPM_VERSION=KPM_V3_00`).
 - FlexRIC compilado com `-DXAPP_MULTILANGUAGE=OFF` (xApps em C, sem SWIG).
 - FlexRIC compilado com gcc-12: o da tag `2026.w46` recusa o gcc-11, padrão do Ubuntu 22.04 (`FlexRIC doesn't support gcc-11`). A futura role `flexric` deve instalar `gcc-12`/`g++-12`, rodar o `cmake` com `CC=gcc-12 CXX=g++-12` num diretório `build` limpo e **não** trocar o compilador padrão da VM, porque o OAI compila com o gcc-11.
