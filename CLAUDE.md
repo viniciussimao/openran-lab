@@ -33,6 +33,10 @@ O `openran-lab` é um laboratório OpenRAN reproduzível e público, feito para 
 - Versões sempre fixas em `ansible/group_vars/all.yml`. Nunca use `latest` nem branches móveis.
 - O repositório não inclui código de terceiros. OAI, CN5G e FlexRIC são baixados no provisionamento.
 - Sem segredos, chaves ou certificados no Git.
+- **Git e pull requests.** O `main` é protegido por um ruleset no GitHub: não aceita push direto, push forçado nem exclusão; toda mudança entra por pull request (0 aprovações exigidas, porque há um só mantenedor), e o merge só é liberado se os dois jobs do CI passarem (`yamllint e ansible-lint` e `shellcheck e Vagrantfile`). Por isso:
+  - nunca faça commit nem push no `main`. Toda mudança, inclusive de documentação, vai num branch `feat/`, `fix/` ou `docs/` (veja o `CONTRIBUTING.md`) com PR;
+  - nos branches de trabalho, envie cada commit para o PR logo depois de commitar, sem perguntar;
+  - se o CI falhar num PR, corrija no mesmo branch.
 
 ## Princípios do roadmap
 

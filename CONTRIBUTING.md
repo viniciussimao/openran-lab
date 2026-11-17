@@ -20,6 +20,15 @@ Obrigado pelo interesse em contribuir com o openran-lab. Este guia resume as con
    - `docs: describe stage 2 slices`
 4. Teste num servidor real: `./scripts/preflight.sh`, `vagrant up` e o critério de aceite da etapa.
 5. Abra um pull request preenchendo o modelo, com a saída relevante dos testes.
+6. Se o CI falhar, corrija no mesmo branch: os novos commits entram no mesmo PR.
+
+O branch `main` é protegido por um ruleset no GitHub:
+
+- não aceita push direto, push forçado nem exclusão;
+- toda mudança, inclusive de documentação, entra por pull request (não é exigida aprovação, porque o projeto tem um só mantenedor);
+- o merge só é liberado quando os dois jobs do CI passam: `yamllint e ansible-lint` e `shellcheck e Vagrantfile`.
+
+Nunca faça commit no `main`. Nos branches de trabalho, envie os commits para o PR assim que os fizer, para que o CI rode e o servidor de teste possa usar o branch.
 
 ## Padrões de código
 

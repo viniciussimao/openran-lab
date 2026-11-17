@@ -23,6 +23,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
   Os builds são idempotentes (registro do commit e das opções de cada build) e usam `async`/`poll`. Novas variáveis em `group_vars/all.yml`: `lab_home`, `oai_src_dir` e `oai_cn5g_image_digests`.
 - `configs/ue.conf`: configuração do nrUE (IMSI, chaves de teste do tutorial do CN5G e sessão PDU no DNN `oai`, SST 1), copiada para `~/ue.conf` pela role `oai_ran`.
 - Solução de problemas: UE que registra, mas não pede sessão PDU (`[SIM] no PDU sessions to request configured`).
+- CONTRIBUTING.md e CLAUDE.md: fluxo com o `main` protegido (só por pull request, merge liberado com os dois jobs do CI verdes; correções de CI no mesmo branch).
 - Solução de problemas: sessão PDU que não sobe porque o `oai-smf` v2.2.2 travou e continuou `healthy` (`SMF Selection, no SMF candidate is available` na AMF). CLAUDE.md: a verificação de saúde do core na Etapa 7 deve consultar o NRF, não só o healthcheck dos containers.
 - Etapa 1 validada à mão no servidor de teste: `ping` do UE até o ext-dn com 5/5 respostas, E2 Setup aceito com os service models KPM, RC, CCC e SLICE_STATS, e `xapp_kpm_moni` mostrando métricas.
 - Roadmap: Etapa 8 (Near-RT RIC da O-RAN SC, para comparação com o FlexRIC), tabela de componentes prontos e próprios, e publicações planejadas.
