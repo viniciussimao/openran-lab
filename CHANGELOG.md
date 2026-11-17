@@ -10,7 +10,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 - Estrutura inicial do repositório: README, licença Apache-2.0, guia de contribuição e política de segurança.
 - `Vagrantfile` configurável por `config.yml` (VMs, recursos e rede de gerenciamento), com VMs nomeadas `openran-ran`, `openran-obs` e `openran-smo`.
-- Roles Ansible `common` (DNS, disco e pacotes base) e `docker`.
+- Roles Ansible `common` (DNS, disco e pacotes base) e `docker`, validadas no servidor de teste em 2026-11-17: `vagrant up ran` terminou com `failed=0`, o disco da VM foi estendido de 62 para 124 GB, o Docker 29.10.0 foi instalado e o DNS ficou em `192.168.121.1` (gateway da rede de gerenciamento).
 - `scripts/preflight.sh` para verificar o host antes do `vagrant up`.
 - Documentação: arquitetura, roadmap, solução de problemas e guia manual da Etapa 1.
 - CI com yamllint, ansible-lint, shellcheck e verificação de sintaxe do `Vagrantfile`.
