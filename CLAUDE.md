@@ -46,6 +46,7 @@ O `openran-lab` é um laboratório OpenRAN reproduzível e público, feito para 
 - Versão fixa: tag `2026.w46` (commit `71a5b64cc76a6dbfd59efe87ba288e31f1d2a32d`). O FlexRIC usado é o submódulo dessa tag (`openair2/E2AP/flexric`).
 - E2AP v3 e E2SM-KPM v3.00 nos dois lados (`-DE2AP_VERSION=E2AP_V3 -DKPM_VERSION=KPM_V3_00`).
 - FlexRIC compilado com `-DXAPP_MULTILANGUAGE=OFF` (xApps em C, sem SWIG).
+- FlexRIC compilado com gcc-12: o da tag `2026.w46` recusa o gcc-11, padrão do Ubuntu 22.04 (`FlexRIC doesn't support gcc-11`). A futura role `flexric` deve instalar `gcc-12`/`g++-12`, rodar o `cmake` com `CC=gcc-12 CXX=g++-12` num diretório `build` limpo e **não** trocar o compilador padrão da VM, porque o OAI compila com o gcc-11.
 - VMs: box `generic/ubuntu2204`, `cpu_mode = host-passthrough` (o OAI precisa de AVX2).
 - As boxes `generic/*` vêm com DNS fixo e DNSSEC ligado, o que quebra a resolução de nomes atrás do dnsmasq do libvirt. A role `common` corrige isso; não remova.
 - Arquivos do CN5G: `doc/tutorial_resources/oai-cn5g` do próprio repositório do OAI.

@@ -20,3 +20,9 @@ Problemas encontrados durante a montagem do laboratório e como resolvê-los.
 | `Cannot call Open vSwitch: ovsdb-server.service is not running` no provisionamento | Aviso do `netplan apply` | Ignorar |
 | Pouco espaço em `/` dentro da VM | O LVM da box não usa o disco inteiro | Já tratado pela role `common` (`lvextend -r -l +100%FREE`) |
 | OAI lento ou sem otimizações de CPU | VM sem AVX2 | Confirmar `cpu_mode = "host-passthrough"` e `grep avx2 /proc/cpuinfo` na VM |
+
+## Compilação
+
+| Sintoma | Causa | Solução |
+| --- | --- | --- |
+| `FlexRIC doesn't support gcc-11` no `cmake` do FlexRIC | O FlexRIC da tag `2026.w46` recusa o gcc-11, padrão do Ubuntu 22.04 | Instalar `gcc-12 g++-12`, apagar o diretório `build` e rodar o `cmake` com `CC=gcc-12 CXX=g++-12` (passo 3 do [guia da Etapa 1](stages/01-ran-core-e2.md)). Não troque o compilador padrão: o OAI compila com o gcc-11 |

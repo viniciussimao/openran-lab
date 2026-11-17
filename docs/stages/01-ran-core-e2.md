@@ -43,10 +43,15 @@ cd ~/openairinterface5g/cmake_targets
 
 `XAPP_MULTILANGUAGE=OFF` deixa só as xApps em C e dispensa o SWIG.
 
+O FlexRIC desta tag não aceita o gcc-11, que é o compilador padrão do Ubuntu 22.04: o CMake para com `FlexRIC doesn't support gcc-11`. Por isso o FlexRIC é compilado com o gcc-12. O compilador padrão da VM continua sendo o gcc-11, porque o OAI (passo 2) compila normalmente com ele.
+
 ```bash
+sudo apt install -y gcc-12 g++-12
+
 cd ~/openairinterface5g/openair2/E2AP/flexric
-mkdir -p build && cd build
-cmake -DXAPP_MULTILANGUAGE=OFF -DE2AP_VERSION=E2AP_V3 -DKPM_VERSION=KPM_V3_00 ..
+rm -rf build    # o CMake guarda o compilador no cache; comece do zero
+mkdir build && cd build
+CC=gcc-12 CXX=g++-12 cmake -DXAPP_MULTILANGUAGE=OFF -DE2AP_VERSION=E2AP_V3 -DKPM_VERSION=KPM_V3_00 ..
 make -j"$(nproc)"
 sudo make install    # service models em /usr/local/lib/flexric/
 ```
