@@ -30,6 +30,11 @@ O branch `main` é protegido por um ruleset no GitHub:
 
 Nunca faça commit no `main`. Nos branches de trabalho, envie os commits para o PR assim que os fizer, para que o CI rode e o servidor de teste possa usar o branch.
 
+## Decisões técnicas e agentes de IA
+
+- Antes de mudar versões, roles ou a forma de subir o cenário, leia o [registro de decisões](docs/decisions.md). Se a sua mudança tomar ou alterar uma decisão, atualize a seção correspondente no mesmo PR.
+- Se você usa um agente de IA, ele deve seguir o [AGENTS.md](AGENTS.md), que resume as convenções e o fluxo deste guia. O `CLAUDE.md` só importa o `AGENTS.md`. Contexto pessoal (o seu ambiente de trabalho, por exemplo) vai num `CLAUDE.local.md`, que fica fora do Git.
+
 ## Padrões de código
 
 - **Ansible:** módulos com nome completo (`ansible.builtin.apt`), toda task com `name` em português e variáveis de role com o prefixo da role (`common_`, `docker_`).
