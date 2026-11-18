@@ -30,7 +30,7 @@ VM ran (Ubuntu 22.04)
 └── xApps (ex.: xapp_kpm_moni) ──► nearRT-RIC
 ```
 
-A arquitetura final, com as VMs `obs` e `smo`, está em [docs/architecture.md](docs/architecture.md).
+A arquitetura final, com as VMs `obs` e `smo`, está em [docs/architecture.md](docs/architecture.md). As decisões técnicas (versões, compiladores, imagens fixadas, cuidados na subida do cenário), com o motivo de cada uma, estão em [docs/decisions.md](docs/decisions.md).
 
 ## Pré-requisitos
 
@@ -106,6 +106,7 @@ Qualquer atualização de versão é registrada no [CHANGELOG](CHANGELOG.md).
 
 ```
 openran-lab/
+├── AGENTS.md                # instruções para agentes de IA (o CLAUDE.md importa este arquivo)
 ├── Vagrantfile              # VMs definidas a partir do config.yml
 ├── config.example.yml       # modelo de configuração por servidor
 ├── ansible/
@@ -119,6 +120,7 @@ openran-lab/
 │   └── preflight.sh         # verificação do host
 └── docs/
     ├── architecture.md
+    ├── decisions.md         # registro das decisões técnicas
     ├── roadmap.md
     ├── troubleshooting.md
     └── stages/              # um guia por etapa

@@ -4,6 +4,9 @@
 # Configuração específica de cada servidor
 config.yml
 
+# Contexto local de cada mantenedor para o Claude Code
+CLAUDE.local.md
+
 # Ansible
 *.retry
 

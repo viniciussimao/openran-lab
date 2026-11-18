@@ -6,6 +6,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não publicado]
 
+### Alterado
+
+- Contexto para agentes de IA reorganizado: as decisões técnicas saem do `CLAUDE.md` para o novo `docs/decisions.md` (contexto, decisão, motivo e consequências de cada uma); convenções, fluxo de trabalho e verificações vão para o novo `AGENTS.md`, neutro de ferramenta; o `CLAUDE.md` só importa o `AGENTS.md`; o contexto pessoal do mantenedor vai para um `CLAUDE.local.md` fora do Git (`.gitignore`). README e CONTRIBUTING.md apontam para os novos arquivos.
+
 ## [0.1.0] - 2026-11-17
 
 Etapa 1 concluída: RAN + core 5G + E2 numa VM, com OAI `2026.w46` (commit `cb98db5b`), FlexRIC do submódulo da tag (gcc-12), OAI CN5G v2.2.2 e E2AP v3/KPM v3.00. Testado com libvirt 10.0.0 e ansible-core 2.21.5.
@@ -14,7 +18,6 @@ Etapa 1 concluída: RAN + core 5G + E2 numa VM, com OAI `2026.w46` (commit `cb98
 
 - Roles `oai_ran`, `flexric` e `oai_cn5g` validadas no servidor de teste: dois `vagrant provision` (o segundo com `changed=0`) e um `vagrant destroy`/`vagrant up` do zero, seguido do critério de aceite (`ping` 5/5 e `xapp_kpm_moni`).
 - Solução de problemas e guia da Etapa 1: espera de 30 a 60 segundos entre o core ficar `healthy` e a subida do gNB (SMF ainda se registrando no NRF); reinício do core quando o UE deixa de receber a sessão PDU depois de várias reinicializações com Ctrl+C; espera pela linha `TUN Interface oaitun_ue1 successfully configured` no log do UE (`| tee /tmp/ue.log` e `timeout 90 tail -f ... | grep -m1`) em vez de um tempo fixo. CLAUDE.md: o script de subida da Etapa 7 deve tratar os três casos.
-
 - Estrutura inicial do repositório: README, licença Apache-2.0, guia de contribuição e política de segurança.
 - `Vagrantfile` configurável por `config.yml` (VMs, recursos e rede de gerenciamento), com VMs nomeadas `openran-ran`, `openran-obs` e `openran-smo`.
 - Roles Ansible `common` (DNS, disco e pacotes base) e `docker`, validadas no servidor de teste em 2026-11-17: `vagrant up ran` terminou com `failed=0`, o disco da VM foi estendido de 62 para 124 GB, o Docker 29.10.0 foi instalado e o DNS ficou em `192.168.121.1` (gateway da rede de gerenciamento).
