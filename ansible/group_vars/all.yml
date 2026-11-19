@@ -39,3 +39,18 @@ oai_cn5g_image_digests:
   oai-smf: oaisoftwarealliance/oai-smf:v2.2.2@sha256:6f7a499255d05c292611065e13e7022ebe5c65a55e90a75b0448578f6fb1518b
   oai-upf: oaisoftwarealliance/oai-upf:v2.2.2@sha256:4ebdb0f7b5e4cab6880c0c95db6c92ea566906b7bbe311665bbc3f586781073c
   oai-ext-dn: oaisoftwarealliance/trf-gen-cn5g:latest@sha256:3f9ab2e401d2a010b568e78db087b5d1526b8756f1056087939116f6138340a6
+
+# Slices da Etapa 2 (S-NSSAI), um UE em cada. Usados no core (role
+# oai_cn5g, conf/config.lab.yaml) e no gNB (role oai_ran, ~/gnb-slices.conf).
+# O sd tem 6 dígitos hexadecimais, como string. Mantenha em sincronia com
+# nssai_sst/nssai_sd e o IMSI de configs/ue-slice1.conf e configs/ue-slice2.conf.
+lab_slices:
+  - name: slice1
+    sst: 1
+    sd: "000001"
+  - name: slice2
+    sst: 1
+    sd: "000002"
+
+# DNN usado pelos dois slices (já existe no config.yaml do CN5G)
+lab_slices_dnn: oai

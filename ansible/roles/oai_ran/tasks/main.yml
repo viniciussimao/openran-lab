@@ -118,10 +118,49 @@
         content: "{{ oai_ran_build_id }}\n"
         mode: "0644"
 
-- name: Copiar a configuração do nrUE para a home do lab_user
+- name: Copiar as configurações do nrUE para a home do lab_user
   ansible.builtin.copy:
-    src: "{{ oai_ran_ue_conf_src }}"
-    dest: "{{ oai_ran_ue_conf_dest }}"
+    src: "{{ oai_ran_configs_dir }}/{{ item }}"
+    dest: "{{ lab_home }}/{{ item }}"
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0644"
+  loop: "{{ oai_ran_ue_confs }}"
+
+- name: Copiar os scripts da Etapa 2 para a home do lab_user
+  ansible.builtin.copy:
+    src: "{{ oai_ran_scripts_dir }}/{{ item }}"
+    dest: "{{ lab_home }}/{{ item }}"
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0755"
+  loop: "{{ oai_ran_scripts }}"
+
+# Etapa 2: o arquivo do OAI não é versionado no openran-lab; a cópia na
+# home recebe só a snssaiList com os slices de lab_slices
+- name: Ler a configuração do gNB da Etapa 1
+  ansible.builtin.slurp:
+    src: "{{ oai_ran_gnb_conf_src }}"
+  register: oai_ran_gnb_conf_raw
+
+- name: Guardar a configuração do gNB da Etapa 1
+  ansible.builtin.set_fact:
+    oai_ran_gnb_conf: "{{ oai_ran_gnb_conf_raw.content | b64decode }}"
+
+- name: Conferir a snssaiList na configuração do gNB
+  ansible.builtin.assert:
+    that:
+      - (oai_ran_gnb_conf.split(oai_ran_gnb_snssai_upstream) | length) == 2
+    fail_msg: >-
+      "{{ oai_ran_gnb_snssai_upstream }}" deveria aparecer uma única vez em
+      {{ oai_ran_gnb_conf_src }}. A configuração do OAI mudou: revise
+      oai_ran_gnb_snssai_upstream.
+    quiet: true
+
+- name: Gerar a configuração do gNB com os slices do laboratório
+  ansible.builtin.template:
+    src: gnb-slices.conf.j2
+    dest: "{{ oai_ran_gnb_slices_conf }}"
     owner: "{{ lab_user }}"
     group: "{{ lab_user }}"
     mode: "0644"

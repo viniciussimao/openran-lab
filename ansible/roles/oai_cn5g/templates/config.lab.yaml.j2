@@ -1,0 +1,51 @@
+{#
+  Gera o config.yaml do core da Etapa 2 a partir do config.yaml do OAI
+  (oai_cn5g_upstream_config), acrescentando os slices de lab_slices. Só
+  insere linhas depois de cabeçalhos que a role confere antes (uma
+  ocorrência de cada). O resto do arquivo fica igual ao do OAI: reescrever
+  o YAML mudaria valores como "mcc: 001".
+#}
+{% set anchors %}
+{% for s in lab_slices %}
+  - &lab_{{ s.name }}
+    sst: {{ s.sst }}
+    sd: "{{ s.sd }}"
+{% endfor %}
+{% endset %}
+{% set amf_nssai %}
+{% for s in lab_slices %}
+        - *lab_{{ s.name }}
+{% endfor %}
+{% endset %}
+{% set smf_info %}
+{% for s in lab_slices %}
+      - sNssai: *lab_{{ s.name }}
+        dnnSmfInfoList:
+          - dnn: "{{ lab_slices_dnn }}"
+{% endfor %}
+{% endset %}
+{% set smf_subscriptions %}
+{% for s in lab_slices %}
+    - single_nssai: *lab_{{ s.name }}
+      dnn: "{{ lab_slices_dnn }}"
+      qos_profile:
+        5qi: {{ oai_cn5g_lab_5qi }}
+        session_ambr_ul: "{{ oai_cn5g_lab_session_ambr }}"
+        session_ambr_dl: "{{ oai_cn5g_lab_session_ambr }}"
+{% endfor %}
+{% endset %}
+{% set upf_info %}
+{% for s in lab_slices %}
+      - sNssai: *lab_{{ s.name }}
+        dnnUpfInfoList:
+          - dnn: "{{ lab_slices_dnn }}"
+{% endfor %}
+{% endset %}
+# Gerado pelo openran-lab (role oai_cn5g). Não edite: é refeito a cada
+# provisionamento a partir de conf/config.yaml do OAI e de lab_slices.
+{{ oai_cn5g_upstream_config
+   | replace(oai_cn5g_config_headers.snssais, oai_cn5g_config_headers.snssais ~ anchors)
+   | replace(oai_cn5g_config_headers.amf_nssai, oai_cn5g_config_headers.amf_nssai ~ amf_nssai)
+   | replace(oai_cn5g_config_headers.smf_info, oai_cn5g_config_headers.smf_info ~ smf_info)
+   | replace(oai_cn5g_config_headers.smf_subscriptions, oai_cn5g_config_headers.smf_subscriptions ~ smf_subscriptions)
+   | replace(oai_cn5g_config_headers.upf_info, oai_cn5g_config_headers.upf_info ~ upf_info) }}

@@ -8,6 +8,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Adicionado
 
+- Etapa 2, linha de base com dois slices (`1.000001` e `1.000002`, em `lab_slices` no `group_vars`): a role `oai_cn5g` gera `conf/config.lab.yaml` a partir do `config.yaml` do OAI, só inserindo os slices na AMF, no SMF e no UPF, e o override do compose o monta no lugar do original; a role `oai_ran` gera `~/gnb-slices.conf` a partir do `.conf` do gNB da Etapa 1, trocando só a `snssaiList`, e copia `configs/ue-slice1.conf`, `configs/ue-slice2.conf` e `scripts/multi-ue-ns.sh` para a VM.
+- `scripts/multi-ue-ns.sh`: cria e remove os network namespaces dos nrUE (um por UE), sem mexer no iptables.
+- Guia da Etapa 2: desenho aprovado do escalonador por slice (cotas no modelo `RRMPolicyRatio`, algoritmo, API, log), limitações conhecidas e roteiro da linha de base com o OAI upstream.
+- Pacote `sysstat` (`mpstat`, `pidstat`) na role `common`, para medir CPU por processo.
 - Fork do OAI em `viniciussimao/openairinterface5g` (branch `slice-scheduler`, a partir da tag `2026.w46`) para o escalonador por slice da Etapa 2. O NOTICE cita o fork e a licença CSSL v1.0.
 - Guia da Etapa 2 (`docs/stages/02-multi-slice.md`) com a investigação do controle de slice no OAI `2026.w46`: o que o CONTROL do E2SM-RC, do E2SM-CCC e do SLICE faz no agente E2, como o escalonador MAC trata slices, quais xApps de controle do FlexRIC são compatíveis, recomendação e testes a fazer no servidor.
 - Decisão 20 em `docs/decisions.md` (proposta): controle de slice por E2SM-RC estilo 2 com patch próprio no OAI (política de PRBs por slice no MAC).

@@ -1,6 +1,6 @@
 # Etapa 2: multi-slice
 
-**Status:** em andamento. A investigação do controle de slice (abaixo) está feita, só por leitura de código; os testes no servidor ainda não foram feitos.
+**Status:** em andamento. A investigação do controle de slice está feita, só por leitura de código. O desenho do escalonador por slice está aprovado, e a linha de base com o OAI upstream (dois slices, dois UEs) aguarda o teste no servidor.
 
 **Objetivo:** dois slices (S-NSSAI) no core e no gNB, um UE em cada, e uma xApp que altera a partição de recursos entre eles.
 
@@ -133,3 +133,191 @@ As xApps rodam num quinto terminal, a partir de `~/openairinterface5g/openair2/E
 5. **Demo VIAVI.** Perguntar à OAI (lista de discussão ou issue) se o código do controle de slice por E2SM-RC mostrado com a VIAVI será publicado. Se for, comparar com o fork antes de escrever o handler E2 (decisão 20).
 
 Cole as saídas dos itens 1 a 4 no PR. Depois dos testes, atualize esta seção.
+
+## Escalonador por slice (prova de conceito)
+
+Desenho aprovado em 2026-11-19, conforme a [decisão 20](../decisions.md#20-escalonador-de-slices-num-fork-próprio-do-oai). O código fica no fork `viniciussimao/openairinterface5g`, na branch `slice-scheduler`, a partir da tag `2026.w46`. A PoC cobre só o downlink, e as cotas são fixas no arquivo de configuração do gNB, sem E2.
+
+### Cotas
+
+As cotas seguem o `RRMPolicyRatio` da 3GPP TS 28.541. Cada slice é identificado pela S-NSSAI (`sst` + `sd`) e recebe três valores, em porcentagem dos PRBs do BWP:
+
+| Parâmetro | Significado |
+| --- | --- |
+| `dedicated_ratio` | PRBs reservados para o slice. Ficam sem uso se o slice não tiver demanda; nenhum outro slice os recebe |
+| `min_ratio` | PRBs garantidos ao slice quando ele tem demanda. Inclui os dedicados. A parte que o slice não usar vai para os outros |
+| `max_ratio` | Teto do slice, mesmo com PRBs sobrando |
+
+Regras de validação, conferidas na subida do gNB:
+
+- `0 ≤ dedicated_ratio ≤ min_ratio ≤ max_ratio ≤ 100`;
+- a soma dos `min_ratio` de todos os slices é no máximo 100;
+- no máximo 8 slices, sem S-NSSAI repetida.
+
+Seção opcional dentro de `MACRLCs.[0]` no `.conf` do gNB. Sem ela, o gNB usa o proportional fair do OAI, sem nenhuma mudança:
+
+```
+slice_policies = (
+  { sst = 1; sd = 0x000001; min_ratio = 0; max_ratio = 30; dedicated_ratio = 0; },
+  { sst = 1; sd = 0x000002; min_ratio = 0; max_ratio = 70; dedicated_ratio = 0; }
+);
+```
+
+### Algoritmo
+
+A cada slot, com N PRBs no BWP:
+
+1. Calcula os orçamentos em PRBs inteiros, arredondando para baixo:
+   1. reserva os dedicados de cada slice configurado, tenha ele demanda ou não;
+   2. garante o mínimo de cada slice com demanda, limitado à demanda dele;
+   3. reparte o resto em partes iguais entre os slices com demanda não atendida (preenchimento até o nível), respeitando o `max_ratio`. A sobra do arredondamento entra nessa etapa.
+2. Dentro de cada slice, chama o proportional fair original do OAI (`nr_dl_proportional_fair()`) com o orçamento do slice como limite de PRBs.
+3. A ordem em que os slices chamam o proportional fair alterna a cada slot (round-robin), para nenhum slice ser favorecido nos PRBs nem nos CCEs do PDCCH.
+
+A demanda de cada slice é estimada como o proportional fair faz: os PRBs da retransmissão, `nr_find_nb_rb()` para dados novos e 5 PRBs para quem só tem um CE da MAC. UEs cuja S-NSSAI não está na configuração (por exemplo, só com SRB) vão para um grupo padrão, com `min_ratio = 0`, `dedicated_ratio = 0` e `max_ratio = 100`.
+
+As cotas passam por uma API própria (`nr_slice_policy_set()` e `nr_slice_policy_get()`), que valida a lista e troca as cotas de uma vez sob o `sched_lock`. A configuração usa essa API agora; o handler do E2SM-RC (CONTROL estilo 2, ação 6) vai usá-la depois.
+
+O gNB escreve no log, cerca de uma vez por segundo, os PRBs DL usados por slice e por UE, separando transmissões novas e retransmissões, e os PRBs que ficaram sem uso no período.
+
+### Limitações conhecidas
+
+- **Só vale a S-NSSAI do primeiro DRB do UE.** Um UE com sessões PDU em dois slices é contado no slice da primeira.
+- **Uma retransmissão pode passar um pouco do orçamento do slice.** A retransmissão HARQ precisa do mesmo número de PRBs da transmissão original.
+- **Um slice com orçamento menor que 5 PRBs só atende retransmissões.** O proportional fair do OAI não aloca menos de 5 PRBs para dados novos.
+- **As cotas valem por slot, não como média numa janela.** O `RRMPolicyRatio` não define a janela; aqui cada slot respeita as cotas.
+
+## Linha de base com o OAI upstream
+
+Antes do escalonador, a linha de base valida o core com dois slices, os dois UEs e a CPU da VM, e mede a divisão do proportional fair puro (a comparação sem cotas). Usa o OAI da tag `2026.w46`, sem o fork.
+
+### O que o provisionamento prepara
+
+| Item | Onde | Como |
+| --- | --- | --- |
+| Slices `1.000001` e `1.000002` | `lab_slices` em `ansible/group_vars/all.yml` | Fonte única para o core e o gNB |
+| Core com os dois slices | `~/oai-cn5g/conf/config.lab.yaml` | A role `oai_cn5g` gera o arquivo a partir do `config.yaml` do OAI, que fica intacto, só inserindo os slices na AMF, no SMF (`smf_info` e assinaturas locais, DNN `oai`) e no UPF. O override do compose monta esse arquivo no lugar do original nos sete NFs |
+| gNB com os dois slices | `~/gnb-slices.conf` | A role `oai_ran` gera o arquivo a partir do `.conf` da Etapa 1, trocando só a `snssaiList` |
+| Um UE por slice | `~/ue-slice1.conf` e `~/ue-slice2.conf` | Copiados de `configs/`. IMSIs `001010000000001` e `001010000000002`, já cadastrados no banco do CN5G com a mesma chave e OPc |
+| Namespaces dos UEs | `~/multi-ue-ns.sh` | Copiado de `scripts/`. Cria `ue1` e `ue2`, com o RFsimulator em `10.201.1.100` e `10.202.1.100` |
+
+O banco do core não muda: o SMF usa as assinaturas locais (`use_local_subscription_info: yes`), e os dois IMSIs já existem no `oai_db.sql` do OAI.
+
+### Roteiro
+
+No servidor de teste, atualize o repositório e provisione duas vezes. Na segunda, o esperado é `changed=0`.
+
+```bash
+cd ~/vinicius/openran-lab && git fetch origin && git switch feat/stage2-slice-scheduler-poc && git pull
+vagrant provision ran 2>&1 | tee /tmp/provision-1.log | tail -4
+vagrant provision ran 2>&1 | tee /tmp/provision-2.log | tail -4
+vagrant ssh ran
+```
+
+**Terminal 1: core.** Confira que os sete NFs montam o arquivo novo e espere o core ficar saudável:
+
+```bash
+cd ~/oai-cn5g
+docker compose config | grep -c "config.lab.yaml"       # esperado: 7
+docker inspect oai-amf --format '{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}' | grep config
+docker compose ps --format 'table {{.Name}}\t{{.Status}}'
+```
+
+Depois de todos ficarem `healthy`, espere de 30 a 60 segundos (decisão 14).
+
+**Terminal 2: nearRT-RIC.**
+
+```bash
+cd ~/openairinterface5g/openair2/E2AP/flexric
+./build/examples/ric/nearRT-RIC 2>&1 | tee /tmp/ric.log
+```
+
+**Terminal 3: gNB com os dois slices.**
+
+```bash
+cd ~/openairinterface5g/cmake_targets/ran_build/build
+sudo ./nr-softmodem -O ~/gnb-slices.conf --gNBs.[0].min_rxtxtime 6 --rfsim \
+  --e2_agent.near_ric_ip_addr "127.0.0.1" --e2_agent.sm_dir "/usr/local/lib/flexric/" 2>&1 | tee /tmp/gnb.log
+```
+
+**Terminal 4: namespaces e UE 1.**
+
+```bash
+sudo ~/multi-ue-ns.sh up 2
+cd ~/openairinterface5g/cmake_targets/ran_build/build
+sudo ip netns exec ue1 ./nr-uesoftmodem -O ~/ue-slice1.conf -r 106 --numerology 1 --band 78 -C 3619200000 --rfsim \
+  --rfsimulator.[0].serveraddr 10.201.1.100 2>&1 | tee /tmp/ue1.log
+```
+
+**Terminal 5: UE 2**, depois de o UE 1 ter a interface:
+
+```bash
+timeout 90 tail -f /tmp/ue1.log | grep -m1 "oaitun_ue1 successfully configured"
+cd ~/openairinterface5g/cmake_targets/ran_build/build
+sudo ip netns exec ue2 ./nr-uesoftmodem -O ~/ue-slice2.conf -r 106 --numerology 1 --band 78 -C 3619200000 --rfsim \
+  --rfsimulator.[0].serveraddr 10.202.1.100 2>&1 | tee /tmp/ue2.log
+```
+
+Cada UE cria a própria `oaitun_ue1` dentro do seu namespace, então a linha de espera é a mesma, mas em logs diferentes.
+
+**Terminal 6: verificações e tráfego.**
+
+1. Os dois UEs com interface, endereço e slice:
+
+   ```bash
+   timeout 90 tail -f /tmp/ue2.log | grep -m1 "oaitun_ue1 successfully configured"
+   for n in 1 2; do sudo ip netns exec ue$n ip -4 -o addr show oaitun_ue1; done
+   grep -i -E "NGSetup|nssai|sst" /tmp/gnb.log | head -20
+   cd ~/oai-cn5g && docker compose logs oai-amf | grep -i -E "nssai|slice|reject|failure" | tail -20
+   docker compose logs oai-smf | grep -i -E "snssai|sst" | tail -20
+   ```
+
+2. Ping nos dois:
+
+   ```bash
+   for n in 1 2; do sudo ip netns exec ue$n ping -c 5 -I oaitun_ue1 192.168.70.135; done
+   ```
+
+3. Capacidade de um UE sozinho e depois os dois ao mesmo tempo, em UDP DL (`-R`), acima da capacidade. O `oai-ext-dn` já roda um servidor na porta 5201; o segundo fica na 5202. Os datagramas têm 1300 bytes (`-l 1300`) porque o MTU da sessão PDU é 1400 (`ue_mtu` do SMF):
+
+   ```bash
+   docker exec oai-ext-dn iperf3 -s -p 5202 -D
+   UE1_IP=$(sudo ip netns exec ue1 ip -4 -o addr show oaitun_ue1 | awk '{print $4}' | cut -d/ -f1)
+   UE2_IP=$(sudo ip netns exec ue2 ip -4 -o addr show oaitun_ue1 | awk '{print $4}' | cut -d/ -f1)
+   sudo ip netns exec ue1 iperf3 -c 192.168.70.135 -p 5201 -B "$UE1_IP" -u -b 300M -l 1300 -R -t 30 | tail -4
+   sudo ip netns exec ue1 iperf3 -c 192.168.70.135 -p 5201 -B "$UE1_IP" -u -b 300M -l 1300 -R -t 60 --logfile /tmp/iperf-ue1.log &
+   sudo ip netns exec ue2 iperf3 -c 192.168.70.135 -p 5202 -B "$UE2_IP" -u -b 300M -l 1300 -R -t 60 --logfile /tmp/iperf-ue2.log &
+   ```
+
+4. Com o tráfego dos dois rodando, no terminal 7, KPM por UE:
+
+   ```bash
+   cd ~/openairinterface5g/openair2/E2AP/flexric
+   XAPP_DURATION=20 ./build/examples/xApp/c/monitor/xapp_kpm_moni 2>&1 | tee /tmp/kpm.log | tail -5
+   grep -E "ran_ue_id|RRU.PrbTotDl|DRB.UEThpDl" /tmp/kpm.log | tail -24
+   ```
+
+5. Ainda com o tráfego rodando, recursos da VM, no terminal 7:
+
+   ```bash
+   free -m
+   docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
+   mpstat 5 1 | tail -1
+   pidstat -u -r -C "nr-softmodem|nr-uesoftmodem|nearRT-RIC" 5 1 | grep -E "Average|Média|PID"
+   ```
+
+6. Depois que os dois `iperf3` terminarem (60 s):
+
+   ```bash
+   wait
+   tail -4 /tmp/iperf-ue1.log /tmp/iperf-ue2.log
+   tail -20 ~/openairinterface5g/cmake_targets/ran_build/build/nrMAC_stats.log
+   ```
+
+Ao final, encerre UEs, gNB e RIC com Ctrl+C e remova os namespaces com `sudo ~/multi-ue-ns.sh down 2`.
+
+Se a AMF recusar o NG Setup (`NGSetupFailure` no log do gNB) ou a sessão PDU de um slice (`reject` ou `S-NSSAI` no log da AMF ou do SMF), pare e guarde `docker compose logs oai-amf oai-smf > /tmp/core.log`.
+
+### Resultados
+
+A preencher com as saídas da linha de base.

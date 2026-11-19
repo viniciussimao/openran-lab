@@ -1,0 +1,8 @@
+{#
+  Configuração do gNB da Etapa 2: a mesma da Etapa 1, só com a snssaiList
+  trocada pelos slices de lab_slices (group_vars).
+#}
+{% set snssai %}snssaiList = ({% for s in lab_slices %}{ sst = {{ s.sst }}; sd = 0x{{ s.sd }}; }{{ ", " if not loop.last else "" }}{% endfor %}){% endset %}
+# Gerado pelo openran-lab (role oai_ran) a partir de
+# {{ oai_ran_gnb_conf_src | basename }}. Não edite: é refeito a cada provisionamento.
+{{ oai_ran_gnb_conf | replace(oai_ran_gnb_snssai_upstream, snssai) }}

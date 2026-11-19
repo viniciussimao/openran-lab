@@ -21,6 +21,22 @@ oai_ran_deps_timeout: 3600
 oai_ran_build_timeout: 7200
 oai_ran_poll_interval: 30
 
-# Configuração do nrUE copiada para a home do lab_user
-oai_ran_ue_conf_src: "{{ playbook_dir }}/../configs/ue.conf"
-oai_ran_ue_conf_dest: "{{ lab_home }}/ue.conf"
+# Configurações do nrUE copiadas de configs/ para a home do lab_user:
+# ue.conf (Etapa 1) e um arquivo por slice (Etapa 2, ver lab_slices)
+oai_ran_configs_dir: "{{ playbook_dir }}/../configs"
+oai_ran_ue_confs:
+  - ue.conf
+  - ue-slice1.conf
+  - ue-slice2.conf
+
+# Etapa 2: configuração do gNB com os slices de lab_slices. É gerada a
+# partir da configuração do gNB da Etapa 1, trocando só a snssaiList.
+oai_ran_gnb_conf_src: "{{ oai_src_dir }}/targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band78.fr1.106PRB.usrpb210.conf"
+oai_ran_gnb_slices_conf: "{{ lab_home }}/gnb-slices.conf"
+oai_ran_gnb_snssai_upstream: "snssaiList = ({ sst = 1; })"
+
+# Scripts de scripts/ copiados para a home do lab_user (não há pasta
+# compartilhada entre o host e a VM)
+oai_ran_scripts_dir: "{{ playbook_dir }}/../scripts"
+oai_ran_scripts:
+  - multi-ue-ns.sh
