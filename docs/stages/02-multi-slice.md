@@ -10,7 +10,7 @@
 
 **Pergunta:** qual service model permite controlar a partição de PRBs entre slices no OAI `2026.w46`?
 
-**Resposta curta:** nenhum, sem mudar o código do OAI. Nenhum dos três caminhos anunciados no E2 Setup (E2SM-RC, E2SM-CCC e SLICE) chega ao escalonador MAC, e o escalonador MAC do gNB não tem escalonamento por slice. A proposta é escrever um patch próprio para o OAI: uma política de alocação de PRBs por slice no MAC, controlada pelo E2SM-RC (CONTROL estilo 2, "Slice-level PRB quota"). Veja a [decisão 20](../decisions.md#20-controle-de-slice-por-e2sm-rc-com-patch-próprio-no-oai-proposta).
+**Resposta curta:** nenhum, sem mudar o código do OAI. Nenhum dos três caminhos anunciados no E2 Setup (E2SM-RC, E2SM-CCC e SLICE) chega ao escalonador MAC, e o escalonador MAC do gNB não tem escalonamento por slice. Decidimos escrever um escalonador por slice num fork próprio do OAI, primeiro com cotas fixas no arquivo de configuração do gNB e depois controlado pelo E2SM-RC (CONTROL estilo 2, "Slice-level PRB quota"). Veja a [decisão 20](../decisions.md#20-escalonador-de-slices-num-fork-próprio-do-oai).
 
 ### Método
 
@@ -130,6 +130,6 @@ As xApps rodam num quinto terminal, a partir de `~/openairinterface5g/openair2/E
 
    Pare com Ctrl+C depois do E2 Setup, copie `/tmp/e2setup.pcap` para o notebook e abra no Wireshark. Na RAN Function Definition do RC (ID 3), confira que só há CONTROL estilos 1 e 3, e que a do CCC (ID 4) é o JSON fixo `"ranFunctionName":"CCC"`.
 
-5. **Demo VIAVI.** Perguntar à OAI (lista de discussão ou issue) se o código do controle de slice por E2SM-RC mostrado com a VIAVI será publicado. Se for, a decisão 20 pode mudar para usá-lo.
+5. **Demo VIAVI.** Perguntar à OAI (lista de discussão ou issue) se o código do controle de slice por E2SM-RC mostrado com a VIAVI será publicado. Se for, comparar com o fork antes de escrever o handler E2 (decisão 20).
 
-Cole as saídas dos itens 1 a 4 no PR. Depois dos testes, atualize esta seção e o status da decisão 20.
+Cole as saídas dos itens 1 a 4 no PR. Depois dos testes, atualize esta seção.

@@ -8,3 +8,12 @@ ele baixa os seguintes projetos, que seguem as próprias licenças:
   - OpenAirInterface RAN (projeto Duranta)
   - OAI CN5G
   - FlexRIC
+
+Na Etapa 2, o gNB pode ser compilado a partir de um fork do OpenAirInterface
+RAN com um escalonador por slice próprio:
+  https://github.com/viniciussimao/openairinterface5g (branch slice-scheduler)
+O openran-lab só referencia esse fork por URL e commit. O código do fork,
+inclusive o escalonador, segue a licença do OpenAirInterface, a Collaborative
+Standards Software License v1.0 (CSSL, SPDX LicenseRef-CSSL-1.0):
+https://openairinterface.org/oai-cssl/. A CSSL dá licença de patentes gratuita
+para estudo, teste e pesquisa, e licença FRAND para outros usos.

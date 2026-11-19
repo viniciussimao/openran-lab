@@ -8,13 +8,14 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Adicionado
 
+- Fork do OAI em `viniciussimao/openairinterface5g` (branch `slice-scheduler`, a partir da tag `2026.w46`) para o escalonador por slice da Etapa 2. O NOTICE cita o fork e a licença CSSL v1.0.
 - Guia da Etapa 2 (`docs/stages/02-multi-slice.md`) com a investigação do controle de slice no OAI `2026.w46`: o que o CONTROL do E2SM-RC, do E2SM-CCC e do SLICE faz no agente E2, como o escalonador MAC trata slices, quais xApps de controle do FlexRIC são compatíveis, recomendação e testes a fazer no servidor.
 - Decisão 20 em `docs/decisions.md` (proposta): controle de slice por E2SM-RC estilo 2 com patch próprio no OAI (política de PRBs por slice no MAC).
 
 ### Alterado
 
+- Decisão 20 reescrita como decisão tomada (2026-11-19): escalonador por slice num fork próprio do OAI sob a CSSL v1.0, cotas no modelo `RRMPolicyRatio`, prova de conceito com cotas fixas no `.conf` do gNB e sem E2, API interna pronta para o E2SM-RC estilo 2, FlexRIC como Near-RT RIC principal e xApp de slicing com a lógica separada da API do FlexRIC.
 - README: Etapa 2 em andamento. Roadmap: risco do controle de slice atualizado com o resultado da investigação. Decisão 18 aponta para a decisão 20.
-
 - Contexto para agentes de IA reorganizado: as decisões técnicas saem do `CLAUDE.md` para o novo `docs/decisions.md` (contexto, decisão, motivo e consequências de cada uma); convenções, fluxo de trabalho e verificações vão para o novo `AGENTS.md`, neutro de ferramenta; o `CLAUDE.md` só importa o `AGENTS.md`; o contexto pessoal do mantenedor vai para um `CLAUDE.local.md` fora do Git (`.gitignore`). README e CONTRIBUTING.md apontam para os novos arquivos.
 
 ## [0.1.0] - 2026-11-17
