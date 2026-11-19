@@ -58,7 +58,7 @@ Problemas comuns na preparação do host estão em [docs/troubleshooting.md](doc
 ## Início rápido
 
 ```bash
-git clone https://github.com/<seu-usuario>/openran-lab.git
+git clone https://github.com/viniciussimao/openran-lab.git
 cd openran-lab
 
 cp config.example.yml config.yml   # ajuste CPU, RAM e rede ao seu servidor
