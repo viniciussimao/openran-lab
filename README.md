@@ -11,7 +11,7 @@ O objetivo final é um cenário em que o consumidor de um slice acompanha dados 
 | Etapa | Entrega | Status |
 | --- | --- | --- |
 | 1 | RAN + core + E2 (OAI gNB/nrUE em rfsim, OAI CN5G, FlexRIC) | Concluída (`v0.1.0`) |
-| 2 | Multi-slice (dois slices, dois UEs, xApp de slicing) | Planejada |
+| 2 | Multi-slice (dois slices, dois UEs, xApp de slicing) | Em andamento ([investigação do controle de slice](docs/stages/02-multi-slice.md#investigação-controle-de-slice)) |
 | 3 | Interface Y1 (produtor e consumidor com mTLS) | Planejada |
 | 4 | Observabilidade (OpenTelemetry, Prometheus, Grafana) | Planejada |
 | 5 | Botão de ação para o consumidor (atalho de laboratório) | Planejada |

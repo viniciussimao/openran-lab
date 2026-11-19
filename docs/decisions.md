@@ -23,6 +23,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 17. [Etapa 8: comparação controlada entre Near-RT RICs](#17-etapa-8-comparação-controlada-entre-near-rt-rics)
 18. [Preferência por E2SM-RC no controle de slice](#18-preferência-por-e2sm-rc-no-controle-de-slice)
 19. [Observações do E2 na Etapa 1](#19-observações-do-e2-na-etapa-1)
+20. [Controle de slice por E2SM-RC com patch próprio no OAI (proposta)](#20-controle-de-slice-por-e2sm-rc-com-patch-próprio-no-oai-proposta)
 
 ## 1. Repositório oficial do OAI
 
@@ -154,7 +155,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 - **Contexto:** o OAI expõe dois caminhos possíveis para controlar slices: o E2SM-RC (padrão O-RAN) e o SLICE SM próprio do FlexRIC. O gNB da tag fixa anuncia o E2SM-RC (decisão 19).
 - **Decisão:** a xApp de slicing usa o E2SM-RC, se o controle de slice funcionar por ele no OAI `2026.w46`.
 - **Motivo:** é o padrão que o Near-RT RIC da O-RAN SC também entende, o que facilita a Etapa 8.
-- **Consequências:** o teste do controle de slice (E2SM-RC ou SLICE SM) abre a Etapa 2. Risco listado em "Riscos e decisões em aberto" no [roadmap](roadmap.md).
+- **Consequências:** o teste do controle de slice (E2SM-RC ou SLICE SM) abre a Etapa 2. Risco listado em "Riscos e decisões em aberto" no [roadmap](roadmap.md). A investigação do código mostrou que o OAI `2026.w46` não controla slices por nenhum service model; o caminho proposto está na decisão 20.
 
 ## 19. Observações do E2 na Etapa 1
 
@@ -164,3 +165,22 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
   - latência das indicações KPM no `xapp_kpm_moni`: cerca de 0,6 ms por UE e de 15 a 46 ms por célula.
 - **Motivo:** confirmar o suporte a E2SM-RC (decisão 18) e ter uma linha de base para as medições do experimento.
 - **Consequências:** os valores valem para rfsim no servidor de teste; não representam rádio real.
+
+## 20. Controle de slice por E2SM-RC com patch próprio no OAI (proposta)
+
+**Status:** proposta, até a validação no servidor descrita em "A confirmar no servidor" no [guia da Etapa 2](stages/02-multi-slice.md#5-a-confirmar-no-servidor).
+
+- **Contexto:** a [investigação do controle de slice](stages/02-multi-slice.md#investigação-controle-de-slice), feita por leitura do código do OAI `2026.w46` e do FlexRIC do submódulo, mostrou que:
+  - no E2SM-RC, o OAI implementa só o CONTROL estilo 1 (QoS flow mapping, que só faz `printf`) e o estilo 3 (handover); não há estilo 2 ("Radio Resource Allocation Control");
+  - o E2SM-CCC e o SLICE aparecem no E2 Setup porque o agente anuncia todo plugin da pasta de service models, mas o OAI não implementa o controle de nenhum dos dois (o SLICE é um stub com dados aleatórios);
+  - o escalonador MAC do gNB usa só proportional fair, sem cotas por slice e sem opção para trocar a política, embora cada candidato já traga a S-NSSAI do primeiro DRB.
+- **Decisão:** escrever um patch próprio para o OAI, aplicado pela role `oai_ran` no provisionamento depois de validado à mão, com:
+  - uma política de alocação de PRBs por slice no MAC (`dl_rb_alloc` e depois `ul_rb_alloc`), com cotas mínima, máxima e dedicada por S-NSSAI (modelo `RRMPolicyRatio` da 3GPP TS 28.541) e proportional fair dentro de cada slice;
+  - o CONTROL estilo 2 do E2SM-RC, ação "Slice-level PRB quota" (E2SM-RC v1.03, seção 7.6.3), anunciado no E2 Setup e ligado a essa política.
+- **Motivo:** é o único caminho que de fato muda os PRBs de um slice nessa tag. O E2SM-RC mantém a decisão 18 (portabilidade para o Near-RT RIC da O-RAN SC na Etapa 8). O E2SM-CCC (`O-RRMPolicyRatio`) fica como alternativa, porque usa o mesmo trabalho no MAC e só muda o adaptador E2. O SLICE SM foi descartado: exigiria o mesmo patch e não é padrão.
+- **Consequências:**
+  - o projeto passa a manter um patch sobre o código do OAI, que continua sendo baixado no provisionamento. Ao trocar a tag do OAI, o patch precisa ser reaplicado e testado;
+  - antes de versionar o patch, confirmar que ele é compatível com a regra "sem código de terceiros" e com a licença do OAI (`LicenseRef-CSSL-1.0`): um diff carrega linhas de contexto do OAI. Alternativas: um arquivo novo próprio para a política, mais um diff mínimo de registro em `main.c` e no agente E2, ou um fork do OAI fixado por commit;
+  - a xApp de slicing monta a mensagem RC estilo 2 com os IDs de parâmetros da especificação, porque a biblioteca RC do FlexRIC não traz constantes para essa ação;
+  - se a OAI publicar o código da demo de controle de slice por E2SM-RC mostrada com a VIAVI, reavaliar esta decisão antes de escrever o patch;
+  - confiança: alta de que não há caminho nativo; média quanto ao esforço do patch no MAC e ao suporte do estilo 2 na biblioteca RC do FlexRIC.
