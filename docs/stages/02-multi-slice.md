@@ -260,16 +260,15 @@ sudo ip netns exec ue2 ./nr-uesoftmodem -O ~/ue-slice2.conf -r 106 --numerology 
 
 Cada UE cria a própria `oaitun_ue1` dentro do seu namespace, então a linha de espera é a mesma, mas em logs diferentes.
 
-**Terminal 6: verificações e tráfego.**
+**Terminal 6 (A): slices, ping e tráfego.** Um comando por vez, na ordem.
 
-1. Os dois UEs com interface, endereço e slice:
+1. Os dois UEs com interface, endereço e slice. A `oaitun_ue1` de cada UE fica dentro do namespace dele: `ip a` na VM não a mostra.
 
    ```bash
    timeout 90 tail -f /tmp/ue2.log | grep -m1 "oaitun_ue1 successfully configured"
    for n in 1 2; do sudo ip netns exec ue$n ip -4 -o addr show oaitun_ue1; done
-   grep -i -E "NGSetup|nssai|sst" /tmp/gnb.log | head -20
-   cd ~/oai-cn5g && docker compose logs oai-amf | grep -i -E "nssai|slice|reject|failure" | tail -20
-   docker compose logs oai-smf | grep -i -E "snssai|sst" | tail -20
+   grep -a -i -E "NGSetup|nssai|sst" /tmp/gnb.log | head -20
+   cd ~/oai-cn5g && docker compose logs oai-smf | grep -E "sst, sd" | sort -u
    ```
 
 2. Ping nos dois:
@@ -278,41 +277,52 @@ Cada UE cria a própria `oaitun_ue1` dentro do seu namespace, então a linha de 
    for n in 1 2; do sudo ip netns exec ue$n ping -c 5 -I oaitun_ue1 192.168.70.135; done
    ```
 
-3. Capacidade de um UE sozinho e depois os dois ao mesmo tempo, em UDP DL (`-R`), acima da capacidade. O `oai-ext-dn` já roda um servidor na porta 5201; o segundo fica na 5202. Os datagramas têm 1300 bytes (`-l 1300`) porque o MTU da sessão PDU é 1400 (`ue_mtu` do SMF):
+3. Segundo servidor do iperf3 e IPs dos UEs (as variáveis só valem neste terminal):
 
    ```bash
    docker exec oai-ext-dn iperf3 -s -p 5202 -D
    UE1_IP=$(sudo ip netns exec ue1 ip -4 -o addr show oaitun_ue1 | awk '{print $4}' | cut -d/ -f1)
    UE2_IP=$(sudo ip netns exec ue2 ip -4 -o addr show oaitun_ue1 | awk '{print $4}' | cut -d/ -f1)
-   sudo ip netns exec ue1 iperf3 -c 192.168.70.135 -p 5201 -B "$UE1_IP" -u -b 300M -l 1300 -R -t 30 | tail -4
-   sudo ip netns exec ue1 iperf3 -c 192.168.70.135 -p 5201 -B "$UE1_IP" -u -b 300M -l 1300 -R -t 60 --logfile /tmp/iperf-ue1.log &
-   sudo ip netns exec ue2 iperf3 -c 192.168.70.135 -p 5202 -B "$UE2_IP" -u -b 300M -l 1300 -R -t 60 --logfile /tmp/iperf-ue2.log &
    ```
 
-4. Com o tráfego dos dois rodando, no terminal 7, KPM por UE:
+4. Capacidade de um UE sozinho, em UDP DL (`-R`), acima da capacidade (30 s). Os datagramas têm 1300 bytes (`-l 1300`) porque o MTU da sessão PDU é 1400 (`ue_mtu` do SMF):
 
    ```bash
-   cd ~/openairinterface5g/openair2/E2AP/flexric
-   XAPP_DURATION=20 ./build/examples/xApp/c/monitor/xapp_kpm_moni 2>&1 | tee /tmp/kpm.log | tail -5
-   grep -E "ran_ue_id|RRU.PrbTotDl|DRB.UEThpDl" /tmp/kpm.log | tail -24
+   sudo ip netns exec ue1 iperf3 -c 192.168.70.135 -p 5201 -B "$UE1_IP" -u -b 300M -l 1300 -R -t 30 | tail -n 4
    ```
 
-5. Ainda com o tráfego rodando, recursos da VM, no terminal 7:
+5. Os dois ao mesmo tempo, em segundo plano, por 90 s. Cole as duas linhas juntas e vá direto para o terminal B:
 
    ```bash
-   free -m
-   docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
-   mpstat 5 1 | tail -1
-   pidstat -u -r -C "nr-softmodem|nr-uesoftmodem|nearRT-RIC" 5 1 | grep -E "Average|Média|PID"
+   sudo ip netns exec ue1 iperf3 -c 192.168.70.135 -p 5201 -B "$UE1_IP" -u -b 300M -l 1300 -R -t 90 --logfile /tmp/iperf-ue1.log &
+   sudo ip netns exec ue2 iperf3 -c 192.168.70.135 -p 5202 -B "$UE2_IP" -u -b 300M -l 1300 -R -t 90 --logfile /tmp/iperf-ue2.log &
    ```
 
-6. Depois que os dois `iperf3` terminarem (60 s):
+**Terminal 7 (B): medições, logo depois do passo 5.** Um único comando: espera 10 s para o tráfego estabilizar, mede os recursos da VM durante o tráfego e roda a xApp de KPM por 20 s. Leva cerca de 50 s, dentro dos 90 s do tráfego. Os horários no início e no fim mostram que as medições caíram dentro do teste.
 
-   ```bash
-   wait
-   tail -4 /tmp/iperf-ue1.log /tmp/iperf-ue2.log
-   tail -20 ~/openairinterface5g/cmake_targets/ran_build/build/nrMAC_stats.log
-   ```
+```bash
+cd ~/openairinterface5g/openair2/E2AP/flexric && sleep 10 && { \
+  echo "inicio $(date +%T)"; free -m; \
+  docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'; \
+  mpstat 5 1 | tail -n 1; \
+  pidstat -u -C "nr-|nearRT" 5 1 | grep Average; \
+  ps -o pid,rss,vsz,pcpu,comm -C nr-softmodem,nr-uesoftmodem,nearRT-RIC; \
+  tail -n 20 ~/openairinterface5g/cmake_targets/ran_build/build/nrMAC_stats.log; \
+  XAPP_DURATION=20 ./build/examples/xApp/c/monitor/xapp_kpm_moni > /tmp/kpm.log 2>&1; \
+  echo "fim $(date +%T)"; } 2>&1 | tee /tmp/medicoes.log
+```
+
+O `pidstat -r` não serve para a memória: ele só lista processos com falta de página no intervalo. O RSS vem do `ps`.
+
+**Terminal 6 (A), depois dos 90 s:**
+
+```bash
+wait; tail -n 4 /tmp/iperf-ue1.log /tmp/iperf-ue2.log
+ls -l --time-style=+%H:%M:%S /tmp/iperf-ue1.log /tmp/iperf-ue2.log
+grep -a -E "ran_ue_id|RRU.PrbTotDl|DRB.UEThpDl" /tmp/kpm.log | tail -n 24
+```
+
+O horário dos logs do iperf3 marca o fim do tráfego; o início foi 90 s antes. O `-a` do `grep` trata o log da xApp como texto mesmo que ele tenha bytes que o `grep` considere binários.
 
 Ao final, encerre UEs, gNB e RIC com Ctrl+C e remova os namespaces com `sudo ~/multi-ue-ns.sh down 2`.
 
@@ -320,4 +330,30 @@ Se a AMF recusar o NG Setup (`NGSetupFailure` no log do gNB) ou a sessão PDU de
 
 ### Resultados
 
-A preencher com as saídas da linha de base.
+**Rodada 1 (2026-11-23).** OAI upstream `2026.w46`, `~/gnb-slices.conf` sem cotas, rfsim, VM `ran` com 8 vCPU e 16 GB.
+
+| Verificação | Resultado |
+| --- | --- |
+| Registro e sessão PDU | Os dois UEs registrados na AMF, sem mudar o banco. Sessões no SMF com `1, 000001` (IMSI `...001`, `10.0.0.2`) e `1, 000002` (IMSI `...002`, `10.0.0.3`) |
+| `oaitun_ue1` | Criada nos dois namespaces |
+| Ping até o ext-dn | 5/5 nos dois; RTT médio de 13,2 ms (UE 1) e 14,9 ms (UE 2) |
+
+| Tráfego UDP DL, `-b 300M -l 1300` | Vazão recebida | Perda |
+| --- | --- | --- |
+| UE 1 sozinho, 30 s | 95,5 Mbit/s | 66% |
+| UE 1, os dois juntos, 90 s | 52,4 Mbit/s (49%) | 81% |
+| UE 2, os dois juntos, 90 s | 54,3 Mbit/s (51%) | 80% |
+| Soma dos dois juntos | 106,7 Mbit/s | |
+
+O proportional fair dividiu a vazão quase meio a meio (49/51). A soma dos dois (106,7 Mbit/s) passou da vazão de um UE sozinho (95,5 Mbit/s). Uma hipótese é que um UE sozinho seja limitado pela CPU do próprio nrUE no rfsim, e não pelos PRBs; a divisão de PRBs da rodada 2 (KPM e log da MAC) deve esclarecer isso.
+
+| Recursos da VM (rodada 1) | Resultado |
+| --- | --- |
+| Memória | 5,3 GB usados de 16 GB; 10,3 GB disponíveis; sem swap |
+| Contêineres do core | Cerca de 0,67 GB no total (MySQL: 495 MB); CPU baixa (AMF 9%, os outros abaixo de 2%) |
+| CPU por processo | gNB 188%, cada nrUE cerca de 113% |
+| CPU da VM | 54% ocupada, 46% ociosa |
+
+A CPU por processo foi medida às 18:18:51–56, depois do fim do tráfego (18:18:49); o `mpstat` pegou só os últimos segundos do tráfego. Esses números são do sistema praticamente ocioso: o rfsim mantém gNB e nrUE ocupados mesmo sem tráfego. A rodada 2 repete a medição durante o tráfego, com o comando único do terminal B.
+
+A xApp de KPM conectou ao nearRT-RIC e recebeu indicações durante o tráfego, mas o `grep` das métricas por UE não achou nada; fica para a rodada 2, com `grep -a`.
