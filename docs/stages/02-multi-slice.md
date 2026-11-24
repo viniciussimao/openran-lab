@@ -356,4 +356,31 @@ O proportional fair dividiu a vazão quase meio a meio (49/51). A soma dos dois 
 
 A CPU por processo foi medida às 18:18:51–56, depois do fim do tráfego (18:18:49); o `mpstat` pegou só os últimos segundos do tráfego. Esses números são do sistema praticamente ocioso: o rfsim mantém gNB e nrUE ocupados mesmo sem tráfego. A rodada 2 repete a medição durante o tráfego, com o comando único do terminal B.
 
-A xApp de KPM conectou ao nearRT-RIC e recebeu indicações durante o tráfego, mas o `grep` das métricas por UE não achou nada; fica para a rodada 2, com `grep -a`.
+**Rodada 2 (2026-11-24).** Mesmo cenário, com o core reiniciado e as medições num comando único. O tráfego rodou de 13:19:18 a 13:20:48, e as medições de 13:19:29 a 13:20:07, dentro dele.
+
+| Verificação | Resultado |
+| --- | --- |
+| NG Setup | O gNB anunciou `SST=0x01 SD=0x000001` e `SD=0x000002`; a AMF respondeu com `NGSetupResponse` |
+| Sessões | O RRC escolheu o CU-UP por "exact NSSAI match" `1:0x000001` (UE 1) e `1:0x000002` (UE 2) |
+
+| Tráfego UDP DL, os dois juntos, 90 s | Vazão recebida (iperf3) | Perda | Goodput DL na MAC (instantâneo) |
+| --- | --- | --- | --- |
+| UE 1 (slice 1) | 54,4 Mbit/s (49,4%) | 80% | 45,8 Mbit/s |
+| UE 2 (slice 2) | 55,7 Mbit/s (50,6%) | 79% | 45,8 Mbit/s |
+| Soma | 110,1 Mbit/s | | |
+
+Na MAC, os dois UEs ficaram com MCS 28 (64QAM), CQI 15, BLER 0 e cerca de 71 mil transmissões DL cada. Houve cerca de 1.400 falhas de alocação de CCE por UE, o que mostra disputa pelo PDCCH com dois UEs; por isso o escalonador por slice alterna a ordem dos slices a cada slot. A divisão sem cotas (proportional fair puro) é **49/51**, nas duas rodadas.
+
+| Recursos da VM com os dois UEs saturados | Resultado |
+| --- | --- |
+| CPU da VM (`mpstat`) | **93% ocupada** (usuário 62%, sistema 26%, softirq 5%), 7% ociosa |
+| CPU por processo (`pidstat`) | gNB 220%, cada nrUE cerca de 213%: cerca de 6,5 núcleos |
+| CPU no core | UPF 31%, `oai-ext-dn` (iperf3) 26%, MySQL 9%, os outros perto de zero |
+| Memória (RSS) | gNB 3,4 GB, cada nrUE 456 MB, nearRT-RIC 5 MB |
+| Memória da VM | 5,3 GB usados de 16 GB; 10,3 GB disponíveis; sem swap |
+
+Com os dois UEs saturados, os 8 vCPU ficam no limite, e a vazão provavelmente é limitada pela CPU, não pelos PRBs. Por isso a divisão de PRBs nos testes T1 a T4 deve ser medida pelo log do escalonador, e não só pela vazão. Mandar 300 Mbit/s por UE, cerca de 5 vezes a fatia de cada um, gasta CPU à toa: os pacotes passam pelo UPF e pelo gNB e são descartados no RLC.
+
+A memória não é problema: sobram cerca de 10 GB.
+
+**KPM por UE: a `xapp_kpm_moni` não vê UEs fora de `1.ffffff`.** A xApp assina o relatório por UE (REPORT estilo 4) com a condição S-NSSAI contendo só o SST (`xapp_kpm_moni.c:279`). O agente E2 do OAI trata uma S-NSSAI sem SD como `1.ffffff` (`nssai_matches()`, `openair2/E2AP/RAN_FUNCTION/O-RAN/ran_func_kpm.c:186`). Como os UEs estão em `1.000001` e `1.000002`, nenhum entra no relatório; o KPM de célula (estilo 1, por exemplo `CARR.PDSCHMCSDist`) chega normalmente. O agente já aceita uma S-NSSAI com SD, de 4 octetos (`capture_sst_sd()`, linha 171). Para ter KPM por UE, a xApp precisa assinar uma vez por slice, com o SD.
