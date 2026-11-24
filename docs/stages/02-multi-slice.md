@@ -187,6 +187,22 @@ O gNB escreve no log, cerca de uma vez por segundo, os PRBs DL usados por slice 
 - **Um slice com orçamento menor que 5 PRBs só atende retransmissões.** O proportional fair do OAI não aloca menos de 5 PRBs para dados novos.
 - **As cotas valem por slot, não como média numa janela.** O `RRMPolicyRatio` não define a janela; aqui cada slot respeita as cotas.
 
+### Critérios de aceite da PoC
+
+O tráfego é UDP DL (`-u -R`) com dois servidores no `oai-ext-dn` (portas 5201 e 5202). Cada UE manda `-b 100M`, acima da fatia dele, sem desperdiçar a CPU da VM (veja os resultados da linha de base). TCP fica como teste extra. A divisão de PRBs é lida do log do escalonador; a vazão do iperf3 é um dado complementar.
+
+| Teste | Cenário | Critério |
+| --- | --- | --- |
+| T0 Regressão | Sem `slice_policies`, 1 UE | Ping 5/5, `xapp_kpm_moni` recebendo KPM e vazão igual à do upstream, dentro do ruído |
+| T1 Disputa | Os dois saturados, `max_ratio` 30/70 | Divisão de PRBs DL de cerca de 30/70 (±5 p.p.) |
+| T2 Conservação | UE do slice 2 ocioso | O slice 1 chega ao `max_ratio` dele, e não além |
+| T3 Mínimo | `.conf` com `min_ratio` diferente de 0, sob disputa | O `min_ratio` do slice menor é respeitado |
+| T4 Dedicado | `.conf` com `dedicated_ratio` diferente de 0, slice dedicado ocioso | Os PRBs dedicados não vão para o outro slice |
+| T5 Estabilidade | 10 min com os dois saturados | Nenhum assert nem queda do gNB |
+| T6 E2 | Os dois UEs com tráfego | A `xapp_kpm_moni` continua recebendo o KPM de célula (REPORT estilo 1) e o gNB não cai. É uma regressão do E2 |
+
+O T6 não cobre o KPM por UE. A `xapp_kpm_moni` filtra os UEs pela S-NSSAI `1.ffffff` e não vê os UEs com SD explícito (veja os resultados da linha de base). O KPM por UE e por slice fica para a xApp de monitoração própria, primeira peça da xApp de slicing, feita logo depois da PoC. Ela assina o REPORT estilo 4 uma vez por slice, com a S-NSSAI de 4 octetos. O critério dela é imprimir `RRU.PrbTotDl` e `DRB.UEThpDl` por UE e por slice, batendo com o log do escalonador.
+
 ## Linha de base com o OAI upstream
 
 Antes do escalonador, a linha de base valida o core com dois slices, os dois UEs e a CPU da VM, e mede a divisão do proportional fair puro (a comparação sem cotas). Usa o OAI da tag `2026.w46`, sem o fork.
