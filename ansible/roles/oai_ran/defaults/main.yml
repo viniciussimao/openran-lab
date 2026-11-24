@@ -14,7 +14,11 @@ oai_ran_build_stamp: "{{ lab_state_dir }}/oai_ran.build"
 # Registro antigo, de antes do diretório de estado. É lido uma vez (para
 # não recompilar à toa) e apagado.
 oai_ran_legacy_build_stamp: "{{ oai_ran_build_dir }}/.openran-lab-build"
-oai_ran_build_id: "{{ oai_commit }} {{ e2ap_version }} {{ kpm_version }}"
+# Commit que o clone deve ter: o do fork com o escalonador de slices
+# ligado (oai_slice_scheduler_enabled), senão o da tag
+oai_ran_commit: "{{ oai_fork_commit if oai_slice_scheduler_enabled | bool else oai_commit }}"
+oai_ran_fork_remote: fork
+oai_ran_build_id: "{{ oai_ran_commit }} {{ e2ap_version }} {{ kpm_version }}"
 
 # Limites dos builds longos, em segundos (async/poll)
 oai_ran_deps_timeout: 3600
@@ -40,3 +44,27 @@ oai_ran_gnb_snssai_upstream: "snssaiList = ({ sst = 1; })"
 oai_ran_scripts_dir: "{{ playbook_dir }}/../scripts"
 oai_ran_scripts:
   - multi-ue-ns.sh
+  - slice-prb-share.sh
+
+# Etapa 2, com o escalonador ligado: uma configuração do gNB por perfil de
+# cotas, em ~/gnb-slices-<nome>.conf. Cada uma é o ~/gnb-slices.conf com a
+# seção slice_policies dentro de MACRLCs, logo depois da linha abaixo. As
+# cotas são em % dos PRBs DL do BWP (TS 28.541) e cada slice vem de
+# lab_slices pelo nome; slice fora da lista fica sem cota (min 0, max 100).
+oai_ran_gnb_policy_anchor: pusch_TargetSNRx10
+oai_ran_gnb_quota_profiles:
+  # T1, T2, T5 e T6: só tetos
+  - name: 30-70
+    quotas:
+      slice1: {min_ratio: 0, max_ratio: 30, dedicated_ratio: 0}
+      slice2: {min_ratio: 0, max_ratio: 70, dedicated_ratio: 0}
+  # T3: mínimo acima da metade para o slice 1
+  - name: min60
+    quotas:
+      slice1: {min_ratio: 60, max_ratio: 100, dedicated_ratio: 0}
+      slice2: {min_ratio: 0, max_ratio: 100, dedicated_ratio: 0}
+  # T4: 20% reservados para o slice 1
+  - name: ded20
+    quotas:
+      slice1: {min_ratio: 20, max_ratio: 100, dedicated_ratio: 20}
+      slice2: {min_ratio: 0, max_ratio: 100, dedicated_ratio: 0}

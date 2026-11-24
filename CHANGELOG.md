@@ -9,6 +9,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 ### Adicionado
 
 - Etapa 2, linha de base com dois slices (`1.000001` e `1.000002`, em `lab_slices` no `group_vars`): a role `oai_cn5g` gera `conf/config.lab.yaml` a partir do `config.yaml` do OAI, só inserindo os slices na AMF, no SMF e no UPF, e o override do compose o monta no lugar do original; a role `oai_ran` gera `~/gnb-slices.conf` a partir do `.conf` do gNB da Etapa 1, trocando só a `snssaiList`, e copia `configs/ue-slice1.conf`, `configs/ue-slice2.conf` e `scripts/multi-ue-ns.sh` para a VM.
+- Etapa 2, integração do escalonador por slice: `oai_slice_scheduler_enabled` (desligado por padrão até a PoC passar), `oai_fork_repo_url`, `oai_fork_branch` e `oai_fork_commit` no `group_vars`. Ligada, a role `oai_ran` põe o clone do OAI no commit do fork (só com o clone limpo) e recompila; desligada, volta ao commit da tag. Ligada, a role também gera `~/gnb-slices-<perfil>.conf` para os perfis de cotas de `oai_ran_gnb_quota_profiles` (`30-70`, `min60` e `ded20`, dos testes T1 a T6).
+- `scripts/slice-prb-share.sh`: resume as linhas `[SLICE]` do log do gNB num trecho do teste (PRBs DL por slice, em % dos disponíveis e dos usados, com novas e retransmissões).
 - `scripts/multi-ue-ns.sh`: cria e remove os network namespaces dos nrUE (um por UE), sem mexer no iptables.
 - Guia da Etapa 2: desenho aprovado do escalonador por slice (cotas no modelo `RRMPolicyRatio`, algoritmo, API, log), limitações conhecidas e roteiro da linha de base com o OAI upstream.
 - Pacote `sysstat` (`mpstat`, `pidstat`) na role `common`, para medir CPU por processo.

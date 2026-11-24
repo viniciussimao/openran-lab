@@ -21,14 +21,69 @@
   become: true
   become_user: "{{ lab_user }}"
 
+# Etapa 2: com oai_slice_scheduler_enabled, o commit esperado é o do fork;
+# sem, o da tag. Trocar de um para o outro só acontece com o clone limpo,
+# para não perder mudanças locais.
+- name: Pôr o clone do OAI no commit esperado
+  when: oai_ran_head.stdout | trim != oai_ran_commit
+  become: true
+  become_user: "{{ lab_user }}"
+  block:
+    - name: Ler as mudanças locais do clone do OAI
+      ansible.builtin.command: git -C {{ oai_src_dir }} status --porcelain --untracked-files=no # noqa: command-instead-of-module
+      register: oai_ran_dirty
+      changed_when: false
+
+    - name: Conferir se o clone do OAI está limpo
+      ansible.builtin.assert:
+        that:
+          - oai_ran_dirty.stdout | trim | length == 0
+        fail_msg: >-
+          O clone em {{ oai_src_dir }} está no commit {{ oai_ran_head.stdout | trim }}
+          e tem mudanças locais. O esperado é {{ oai_ran_commit }}.
+          Guarde ou descarte as mudanças e provisione de novo.
+        quiet: true
+
+    - name: Ler o remoto do fork no clone do OAI
+      ansible.builtin.command: git -C {{ oai_src_dir }} remote get-url {{ oai_ran_fork_remote }} # noqa: command-instead-of-module
+      register: oai_ran_fork_url
+      changed_when: false
+      failed_when: false
+      when: oai_slice_scheduler_enabled | bool
+
+    - name: Configurar o remoto do fork no clone do OAI
+      ansible.builtin.command: >- # noqa: command-instead-of-module
+        git -C {{ oai_src_dir }} remote
+        {{ 'set-url' if oai_ran_fork_url.rc == 0 else 'add' }}
+        {{ oai_ran_fork_remote }} {{ oai_fork_repo_url }}
+      changed_when: true
+      when:
+        - oai_slice_scheduler_enabled | bool
+        - oai_ran_fork_url.stdout | default('') | trim != oai_fork_repo_url
+
+    - name: Baixar a branch do fork
+      ansible.builtin.command: git -C {{ oai_src_dir }} fetch {{ oai_ran_fork_remote }} {{ oai_fork_branch }} # noqa: command-instead-of-module
+      changed_when: true
+      when: oai_slice_scheduler_enabled | bool
+
+    - name: Fazer o checkout do commit esperado
+      ansible.builtin.command: git -C {{ oai_src_dir }} checkout --detach {{ oai_ran_commit }} # noqa: command-instead-of-module
+      changed_when: true
+
+    # Outro nome: uma task pulada com register apagaria o oai_ran_head
+    - name: Ler de novo o commit do clone do OAI
+      ansible.builtin.command: git -C {{ oai_src_dir }} rev-parse HEAD # noqa: command-instead-of-module
+      register: oai_ran_head_new
+      changed_when: false
+
 - name: Conferir se o clone está no commit fixo
   ansible.builtin.assert:
     that:
-      - oai_ran_head.stdout | trim == oai_commit
+      - oai_ran_head_new.stdout | default(oai_ran_head.stdout) | trim == oai_ran_commit
     fail_msg: >-
-      O clone em {{ oai_src_dir }} está no commit {{ oai_ran_head.stdout | trim }},
-      mas o esperado é {{ oai_commit }} (tag {{ oai_version }}).
-      Faça o checkout da tag à mão ou apague o diretório e provisione de novo.
+      O clone em {{ oai_src_dir }} está no commit {{ oai_ran_head_new.stdout | default(oai_ran_head.stdout) | trim }},
+      mas o esperado é {{ oai_ran_commit }}
+      ({{ 'branch ' ~ oai_fork_branch ~ ' do fork' if oai_slice_scheduler_enabled | bool else 'tag ' ~ oai_version }}).
     quiet: true
 
 # O módulo git só inicia todos os submódulos (recursive); aqui basta o FlexRIC
@@ -164,3 +219,42 @@
     owner: "{{ lab_user }}"
     group: "{{ lab_user }}"
     mode: "0644"
+
+# Etapa 2, com o escalonador do fork: uma configuração do gNB por perfil de
+# cotas (oai_ran_gnb_quota_profiles), a partir do ~/gnb-slices.conf
+- name: Conferir a linha de inserção das cotas na configuração do gNB
+  ansible.builtin.assert:
+    that:
+      - (oai_ran_gnb_conf.split(oai_ran_gnb_policy_anchor) | length) == 2
+    fail_msg: >-
+      "{{ oai_ran_gnb_policy_anchor }}" deveria aparecer uma única vez, dentro
+      de MACRLCs, em {{ oai_ran_gnb_conf_src }}. A configuração do OAI mudou:
+      revise oai_ran_gnb_policy_anchor.
+    quiet: true
+  when: oai_slice_scheduler_enabled | bool
+
+- name: Conferir os slices dos perfis de cotas
+  ansible.builtin.assert:
+    that:
+      - item.quotas | length > 0
+      - item.quotas.keys() | difference(lab_slices | map(attribute='name')) | length == 0
+    fail_msg: >-
+      O perfil "{{ item.name }}" de oai_ran_gnb_quota_profiles precisa de pelo
+      menos uma cota, e cada cota tem de usar o nome de um slice de lab_slices.
+    quiet: true
+  loop: "{{ oai_ran_gnb_quota_profiles }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: oai_slice_scheduler_enabled | bool
+
+- name: Gerar as configurações do gNB com as cotas por slice
+  ansible.builtin.template:
+    src: gnb-slices-quota.conf.j2
+    dest: "{{ lab_home }}/gnb-slices-{{ item.name }}.conf"
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0644"
+  loop: "{{ oai_ran_gnb_quota_profiles }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: oai_slice_scheduler_enabled | bool
