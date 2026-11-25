@@ -51,8 +51,8 @@
       failed_when: false
       when: oai_slice_scheduler_enabled | bool
 
-    - name: Configurar o remoto do fork no clone do OAI
-      ansible.builtin.command: >- # noqa: command-instead-of-module
+    - name: Configurar o remoto do fork no clone do OAI # noqa: command-instead-of-module
+      ansible.builtin.command: >-
         git -C {{ oai_src_dir }} remote
         {{ 'set-url' if oai_ran_fork_url.rc == 0 else 'add' }}
         {{ oai_ran_fork_remote }} {{ oai_fork_repo_url }}
