@@ -189,7 +189,7 @@ O gNB escreve no log, cerca de uma vez por segundo, os PRBs DL usados por slice 
 
 ### Critérios de aceite da PoC
 
-O tráfego é UDP DL (`-u -R`) com dois servidores no `oai-ext-dn` (portas 5201 e 5202). Cada UE manda `-b 100M`, acima da fatia dele, sem desperdiçar a CPU da VM (veja os resultados da linha de base). TCP fica como teste extra. A divisão de PRBs é lida do log do escalonador; a vazão do iperf3 é um dado complementar.
+O tráfego é UDP DL (`-u -R`) com dois servidores no `oai-ext-dn` (portas 5201 e 5202). Cada UE que precisa saturar o slice manda `-b 200M`: com `-b 100M`, um UE sozinho num slice com folga recebe tudo o que pede e não mostra teto nenhum (veja os [resultados da PoC](#resultados-da-poc)). TCP fica como teste extra. A divisão de PRBs é lida do log do escalonador com `slice-prb-share.sh`; a vazão do iperf3 é um dado complementar.
 
 | Teste | Cenário | Critério |
 | --- | --- | --- |
@@ -400,3 +400,106 @@ Com os dois UEs saturados, os 8 vCPU ficam no limite, e a vazão provavelmente �
 A memória não é problema: sobram cerca de 10 GB.
 
 **KPM por UE: a `xapp_kpm_moni` não vê UEs fora de `1.ffffff`.** A xApp assina o relatório por UE (REPORT estilo 4) com a condição S-NSSAI contendo só o SST (`xapp_kpm_moni.c:279`). O agente E2 do OAI trata uma S-NSSAI sem SD como `1.ffffff` (`nssai_matches()`, `openair2/E2AP/RAN_FUNCTION/O-RAN/ran_func_kpm.c:186`). Como os UEs estão em `1.000001` e `1.000002`, nenhum entra no relatório; o KPM de célula (estilo 1, por exemplo `CARR.PDSCHMCSDist`) chega normalmente. O agente já aceita uma S-NSSAI com SD, de 4 octetos (`capture_sst_sd()`, linha 171). Para ter KPM por UE, a xApp precisa assinar uma vez por slice, com o SD.
+
+## Testes da PoC
+
+Os testes usam o gNB compilado do fork, no commit fixado em `oai_fork_commit`.
+
+### O que o provisionamento prepara
+
+Com `oai_slice_scheduler_enabled: true` em `ansible/group_vars/all.yml`, a role `oai_ran`:
+
+- põe o clone do OAI no commit do fork e recompila. Só faz isso com o clone sem mudanças locais; com a chave em `false`, volta ao commit da tag;
+- gera um `.conf` do gNB por perfil de cotas, a partir do `~/gnb-slices.conf`, com a seção `slice_policies` dentro de `MACRLCs`;
+- copia `scripts/slice-prb-share.sh` para a home, que resume as linhas `[SLICE]` de um trecho do log do gNB.
+
+| Arquivo | Cotas (slice 1 / slice 2) | Testes |
+| --- | --- | --- |
+| `~/gnb-slices.conf` | sem `slice_policies` | T0 |
+| `~/gnb-slices-30-70.conf` | `max_ratio` 30 / 70 | T1, T2, T5, T6 |
+| `~/gnb-slices-min60.conf` | `min_ratio` 60 / 0, `max_ratio` 100 / 100 | T3 |
+| `~/gnb-slices-ded40.conf` | `dedicated_ratio` e `min_ratio` 40 / 0, `max_ratio` 100 / 100 | T4 |
+| `~/gnb-slices-100-100.conf` | `max_ratio` 100 / 100 | controle: escalonador ligado, sem limite |
+
+Os perfis ficam em `oai_ran_gnb_quota_profiles`, nos defaults da role. Enquanto a PoC não vira padrão, a chave é ligada só na cópia local do servidor e desfeita com `git checkout ansible/group_vars/all.yml` ao terminar.
+
+### Roteiro
+
+No servidor, provisione duas vezes. A primeira recompila; na segunda, o esperado é `changed=0`.
+
+```bash
+cd ~/vinicius/openran-lab && git pull && sed -i 's/^oai_slice_scheduler_enabled: false$/oai_slice_scheduler_enabled: true/' ansible/group_vars/all.yml
+vagrant provision ran 2>&1 | tee /tmp/provision-fork-1.log | tail -4
+vagrant provision ran 2>&1 | tee /tmp/provision-fork-2.log | tail -4
+```
+
+Core, RIC, namespaces e UEs sobem como na [linha de base](#roteiro). Muda só o gNB, que lê o perfil da variável `CONF`. A variável vale só no terminal onde foi definida, então defina-a **no terminal do gNB**:
+
+```bash
+CONF=~/gnb-slices-30-70.conf
+cd ~/openairinterface5g/cmake_targets/ran_build/build && sudo ./nr-softmodem -O "$CONF" --gNBs.[0].min_rxtxtime 6 --rfsim \
+  --e2_agent.near_ric_ip_addr "127.0.0.1" --e2_agent.sm_dir "/usr/local/lib/flexric/" 2>&1 | tee /tmp/gnb.log
+```
+
+As cotas só são lidas na subida. A cada troca de perfil, encerre UEs e gNB e suba os três de novo.
+
+No terminal de testes, suba o segundo servidor do iperf3 e defina as duas funções. Elas valem enquanto o terminal estiver aberto; depois de reiniciar a VM, defina de novo, junto com os namespaces (`sudo ~/multi-ue-ns.sh up 2`).
+
+```bash
+docker exec oai-ext-dn iperf3 -s -p 5202 -D
+ue_ip() { sudo ip netns exec "ue$1" ip -4 -o addr show oaitun_ue1 | awk '{print $4}' | cut -d/ -f1; }
+janela() { local nome=$1 dur=$2 rate=$3 L n; shift 3; L=$(wc -l < /tmp/gnb.log); for n in "$@"; do sudo ip netns exec "ue$n" iperf3 -c 192.168.70.135 -p "520$n" -B "$(ue_ip "$n")" -u -b "$rate" -l 1300 -R -t "$dur" --logfile "/tmp/iperf-$nome-ue$n.log" & done; wait; for n in "$@"; do echo "== UE$n"; tail -n 4 "/tmp/iperf-$nome-ue$n.log"; done; tail -n +"$L" /tmp/gnb.log | ~/slice-prb-share.sh -s 3 | tee "/tmp/$nome.txt"; }
+```
+
+`janela NOME SEGUNDOS TAXA UE...` marca a linha atual do log do gNB, roda o iperf3 nos UEs pedidos ao mesmo tempo e, no fim, resume só o trecho do teste. O `-s 3` descarta os três primeiros períodos, enquanto o tráfego sobe. Antes de cada teste, confira o perfil e os IPs:
+
+```bash
+grep -a "cota DL" /tmp/gnb.log; ue_ip 1; ue_ip 2
+```
+
+| Teste | Perfil | Comando |
+| --- | --- | --- |
+| T0 | `gnb-slices.conf`, só o UE 1 | `grep -a -c "\[SLICE\]" /tmp/gnb.log` (esperado: 0), ping e iperf3 como na linha de base, `xapp_kpm_moni` |
+| T1 | `30-70` | `janela t1 60 200M 1 2` |
+| T2 | `30-70` | `janela t2 60 200M 1` |
+| T3 | `min60` | `janela t3 60 200M 1 2` |
+| T4 | `ded40` | `janela t4 60 200M 2` |
+| T5 e T6 | `30-70` | `janela t5 600 200M 1 2` e, cerca de 1 min depois, num segundo terminal, o comando de medição da linha de base com a `xapp_kpm_moni`. No fim: `grep -a -c -E "Assert\|Segmentation" /tmp/gnb.log; pgrep -a nr-softmodem` |
+| Controle c1 | `100-100` | `janela c1 60 200M 1` |
+| Controle c2 | `100-100` | `janela c2 60 200M 1 2` |
+
+O resumo do `slice-prb-share.sh` traz duas porcentagens por slice. **`%disp`** é a fatia dos PRBs livres para PDSCH, somados slot a slot; compare-a com as cotas em relação ao teto prático de um UE (veja abaixo). **`%usados`** é a fatia dos PRBs efetivamente alocados; serve para a divisão entre slices que disputam.
+
+### Resultados da PoC
+
+**Rodadas de 2026-11-24 e 2026-11-25.** Fork no commit `125c80f`, mesma VM e mesmo cenário da linha de base. Os testes T2, T3, T5 e c2 rodaram com `-b 100M`; neles, os UEs que precisavam saturar saturaram, com perda de 35% a 63%. T1, T4 e c1 rodaram com `-b 200M`.
+
+| Teste | Resultado | Critério |
+| --- | --- | --- |
+| T0 Regressão | Nenhuma linha `[SLICE]`; ping 5/5; KPM de célula recebido. Com os dois UEs e sem cotas, 54,9 / 54,5 Mbit/s, contra 54,4 / 55,7 na linha de base | Passou |
+| T1 Disputa | Os dois saturados (perda de 78% e 61%): **31,6 / 68,4** dos PRBs usados; 39,1 / 73,4 Mbit/s | Passou (30/70 ± 5 p.p.) |
+| T2 Conservação | Só o UE 1, saturado (perda de 52%): slice 1 em 22,3% dos disponíveis, que são 30% do teto de um UE; 42,7 Mbit/s, 31% dos 137 Mbit/s de um UE sem cotas | Passou |
+| T3 Mínimo | Com o mínimo de 60%, o UE 1 recebeu tudo o que pediu (100 Mbit/s, perda de 0,3%), e o UE 2 ficou com 45 Mbit/s. No controle c2, com a mesma taxa pedida, o UE 1 recebia 60 Mbit/s | Passou |
+| T4 Dedicado | Só o UE 2, saturado (perda de 61%), com 40% dedicados ao slice 1 ocioso: slice 2 em 45,6% dos disponíveis, **61%** do teto de um UE | Passou (até 60% do teto) |
+| T5 Estabilidade | 10 min com os dois UEs e o perfil `30-70`: nenhum `Assert`, gNB no ar | Passou |
+| T6 E2 | `xapp_kpm_moni` recebeu o KPM de célula durante o T5 (`Test xApp run SUCCESSFULLY`) | Passou |
+
+| Controle | Resultado |
+| --- | --- |
+| c1: um UE sozinho, sem limite | 108 Mbit/s (perda de 44%), **75,0%** dos PRBs disponíveis |
+| c2: os dois, sem limite | **49,8 / 50,2** dos PRBs usados; cerca de 60 Mbit/s cada |
+| Mínimo e dedicado sob disputa (perfil `ded40`, os dois saturados) | **68 / 32** dos usados. Previsto: 70/30 (42 PRBs dedicados ao slice 1, os 64 restantes em partes iguais) |
+
+Recursos durante o T5, com cotas, comparados com o fork sem cotas: CPU da VM de 61 / 25 / 3,7% (usuário, sistema, softirq) contra 62 / 24 / 3,8%; gNB com 218% nos dois casos; RSS do gNB de 3,52 GB contra 3,57 GB. O custo do escalonador não aparece na medição.
+
+**O teto prático de um UE é de cerca de 75% dos PRBs disponíveis.** Mesmo sem limite (c1), um UE saturado usa 75% dos PRBs livres para PDSCH contados pelo escalonador. Por isso, com `max_ratio` 30, o slice 1 fica sempre em 22,3% dos disponíveis: 30% de 75%. O teto é aplicado em cada slot; os cerca de 25% restantes não são usados por ninguém, com ou sem cotas. O `nrMAC_stats.log` mostra só 2 falhas de CCE por UE, então o PDCCH não explica a diferença. A causa fica em aberto (veja abaixo).
+
+**No rfsim, a simulação roda cerca de 2,4 vezes mais rápido que o relógio.** O gNB escreve uma linha de período a cada 100 frames (1 s de tempo simulado), e saíram 70 a 71 linhas em 30 s de relógio. Os Mbit/s do iperf3 são de relógio de parede e não se comparam com a capacidade teórica da célula. As porcentagens de PRBs não são afetadas.
+
+**A vazão de um UE sozinho depende de o outro nrUE estar ligado.** Com só o UE 1 ligado (T0), ele fez 137 Mbit/s; na linha de base, com o UE 2 ligado e ocioso, 95,5 Mbit/s. O segundo `nr-uesoftmodem` disputa a CPU da VM. Compare vazões só entre cenários com os mesmos processos no ar.
+
+### Pontos em aberto
+
+- **Os cerca de 25% de PRBs que nenhum UE usa.** Candidatos: slots em que o UE não pode ser escalonado (processos HARQ esperando confirmação, restrições de `k1`), o slot misto do TDD contado como cheio, ou PRBs livres no `vrb_map` que o proportional fair não aproveita. Investigar com o `nrMAC_stats.log` lido durante o tráfego e, se preciso, um contador por slot no log do escalonador.
+- **Fork como padrão.** A PoC passou nos critérios de aceite. Ligar `oai_slice_scheduler_enabled` por padrão é uma mudança à parte, a registrar na decisão 20.
+- **Próximo passo:** a xApp de monitoração KPM por slice (REPORT estilo 4 com a S-NSSAI de 4 octetos) e, depois, o handler E2SM-RC estilo 2 sobre `nr_slice_policy_set()`.

@@ -185,7 +185,8 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 - **Motivo:** nenhum caminho nativo muda os PRBs de um slice nessa tag. Um fork fixado por commit mantém a regra "sem código de terceiros" no openran-lab e deixa o patch versionado e revisável, com um histórico que facilita o rebase em tags futuras. Começar sem E2 isola o risco: primeiro valida-se o escalonador; depois, o controle. O E2SM-RC mantém a decisão 18.
 - **Consequências:**
   - o patch deve ser pequeno e localizado (arquivos novos mais um registro mínimo em arquivos existentes), para facilitar o rebase. Ao trocar a tag do OAI, a branch do fork é refeita sobre a tag nova e testada de novo;
-  - o fork só vira o padrão em `group_vars` quando a PoC passar nos critérios de aceite do [guia da Etapa 2](stages/02-multi-slice.md); até lá, ele é ativado por uma variável;
+  - o fork só vira o padrão em `group_vars` quando a PoC passar nos critérios de aceite do [guia da Etapa 2](stages/02-multi-slice.md); até lá, ele é ativado pela variável `oai_slice_scheduler_enabled`;
+  - **resultado da PoC (2026-11-25):** o commit `125c80f` do fork passou nos testes T0 a T6. Sem cotas, o gNB se comporta como o upstream; com cotas, a divisão de PRBs segue o `max_ratio` (31,6 / 68,4 para 30 / 70), o `min_ratio` e o `dedicated_ratio`, sem custo de CPU mensurável e sem quedas em 10 minutos. Detalhes nos [resultados da PoC](stages/02-multi-slice.md#resultados-da-poc);
   - a xApp de slicing monta a mensagem RC estilo 2 com os IDs de parâmetros da especificação, porque a biblioteca RC do FlexRIC não traz constantes para essa ação;
   - se a OAI publicar o código da demo de controle de slice por E2SM-RC mostrada com a VIAVI, comparar com o fork antes de escrever o handler E2;
   - o [NOTICE](../NOTICE) cita o fork e a licença CSSL.

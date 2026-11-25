@@ -63,8 +63,15 @@ oai_ran_gnb_quota_profiles:
     quotas:
       slice1: {min_ratio: 60, max_ratio: 100, dedicated_ratio: 0}
       slice2: {min_ratio: 0, max_ratio: 100, dedicated_ratio: 0}
-  # T4: 20% reservados para o slice 1
-  - name: ded20
+  # T4: 40% reservados para o slice 1. Com 20%, o outro slice ficaria com
+  # até 80%, acima do que um UE sozinho usa (cerca de 75% no rfsim), e o
+  # teste não mostraria nada
+  - name: ded40
     quotas:
-      slice1: {min_ratio: 20, max_ratio: 100, dedicated_ratio: 20}
+      slice1: {min_ratio: 40, max_ratio: 100, dedicated_ratio: 40}
+      slice2: {min_ratio: 0, max_ratio: 100, dedicated_ratio: 0}
+  # Controle: escalonador ligado, sem nenhuma cota que limite
+  - name: 100-100
+    quotas:
+      slice1: {min_ratio: 0, max_ratio: 100, dedicated_ratio: 0}
       slice2: {min_ratio: 0, max_ratio: 100, dedicated_ratio: 0}
