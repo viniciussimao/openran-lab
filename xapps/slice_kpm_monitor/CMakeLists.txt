@@ -6,7 +6,8 @@
 # (SKM_BUILD_XAPP=ON) precisa de um FlexRIC já compilado, com as mesmas
 # versões de E2AP e KPM do gNB. Dois jeitos de compilar:
 #
-#   Fora da árvore do FlexRIC (padrão), com a biblioteca e42_xapp_shared:
+#   Fora da árvore do FlexRIC (padrão), com a biblioteca e42_xapp_shared e a
+#   asn1_nr_rrc (runtime ASN.1):
 #     cmake -S . -B build -DFLEXRIC_SRC_DIR=<flexric> -DFLEXRIC_BUILD_DIR=<flexric>/build
 #
 #   Como subdiretório do FlexRIC (add_subdirectory), com o alvo e42_xapp.
@@ -56,9 +57,17 @@ else()
   if(NOT FLEXRIC_XAPP_LIB)
     message(FATAL_ERROR "libe42_xapp_shared não encontrada em ${FLEXRIC_BUILD_DIR}/src/xApp")
   endif()
+  # A libe42_xapp_shared do FlexRIC não traz o runtime ASN.1 nem as mensagens
+  # RRC (asn_OP_*, uper_decode, asn_DEF_NR_UL_DCCH_Message): eles ficam na
+  # biblioteca estática asn1_nr_rrc, compilada junto com os exemplos de xApp.
+  find_library(FLEXRIC_RRC_LIB asn1_nr_rrc
+               PATHS "${FLEXRIC_BUILD_DIR}/examples/xApp/c/monitor/RRC_MESSAGES" NO_DEFAULT_PATH)
+  if(NOT FLEXRIC_RRC_LIB)
+    message(FATAL_ERROR "libasn1_nr_rrc não encontrada em ${FLEXRIC_BUILD_DIR}/examples/xApp/c/monitor/RRC_MESSAGES")
+  endif()
   find_library(SQLITE3_LIB sqlite3)
   target_include_directories(slice_kpm_monitor PRIVATE "${FLEXRIC_SRC_DIR}/src")
-  target_link_libraries(slice_kpm_monitor PRIVATE skm_core ${FLEXRIC_XAPP_LIB} -pthread -lsctp -ldl)
+  target_link_libraries(slice_kpm_monitor PRIVATE skm_core ${FLEXRIC_XAPP_LIB} ${FLEXRIC_RRC_LIB} -pthread -lsctp -ldl)
   if(SQLITE3_LIB)
     target_link_libraries(slice_kpm_monitor PRIVATE ${SQLITE3_LIB})
   endif()

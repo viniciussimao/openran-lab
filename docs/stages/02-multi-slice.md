@@ -531,12 +531,15 @@ O repositório não é compartilhado com a VM. Clone o branch na VM e compile co
 ```bash
 git clone -b feat/stage2-slice-kpm-xapp https://github.com/viniciussimao/openran-lab.git ~/openran-lab-src
 ls ~/openairinterface5g/openair2/E2AP/flexric/build/src/xApp/ | grep e42_xapp
+ls ~/openairinterface5g/openair2/E2AP/flexric/build/examples/xApp/c/monitor/RRC_MESSAGES/libasn1_nr_rrc.a
 FR=~/openairinterface5g/openair2/E2AP/flexric
 CC=gcc-12 cmake -S ~/openran-lab-src/xapps/slice_kpm_monitor -B ~/skm-build -DFLEXRIC_SRC_DIR=$FR -DFLEXRIC_BUILD_DIR=$FR/build
 cmake --build ~/skm-build -j4 && ctest --test-dir ~/skm-build --output-on-failure
 ```
 
-Se a ligação com a `libe42_xapp_shared.so` falhar, há uma alternativa: compilar a xApp dentro da árvore do FlexRIC, ligando a pasta em `examples/xApp/c/` e incluindo um `add_subdirectory` no `CMakeLists.txt` de lá. O `CMakeLists.txt` da xApp detecta o alvo `e42_xapp` e usa a biblioteca estática.
+A `libe42_xapp_shared.so` do FlexRIC não inclui o runtime ASN.1 nem as mensagens RRC, que ficam na biblioteca estática `libasn1_nr_rrc.a`, compilada com os exemplos de xApp. O `CMakeLists.txt` da xApp liga as duas.
+
+Se a ligação ainda falhar, há uma alternativa: compilar a xApp dentro da árvore do FlexRIC, ligando a pasta em `examples/xApp/c/` e incluindo um `add_subdirectory` no `CMakeLists.txt` de lá. O `CMakeLists.txt` da xApp detecta o alvo `e42_xapp` e usa a biblioteca estática.
 
 ### Uso
 
