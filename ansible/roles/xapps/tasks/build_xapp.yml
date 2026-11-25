@@ -1,0 +1,99 @@
+---
+# Compila uma xApp (xapps_name). Chamado em loop por main.yml.
+
+- name: Copiar o código da xApp {{ xapps_name }}
+  ansible.builtin.copy:
+    src: "{{ xapps_src_dir }}/{{ xapps_name }}/"
+    dest: "{{ xapps_dest_dir }}/{{ xapps_name }}/"
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: preserve
+    directory_mode: "0755"
+
+- name: Calcular a soma do código da xApp {{ xapps_name }}
+  ansible.builtin.shell:
+    cmd: set -o pipefail && find . -type f -not -path './build/*' -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1
+    chdir: "{{ xapps_dest_dir }}/{{ xapps_name }}"
+    executable: /bin/bash
+  register: xapps_src_sum
+  changed_when: false
+
+- name: Ler o commit do FlexRIC
+  ansible.builtin.command: git -C {{ xapps_flexric_src_dir }} rev-parse HEAD # noqa: command-instead-of-module
+  register: xapps_flexric_head
+  changed_when: false
+  become: true
+  become_user: "{{ lab_user }}"
+
+- name: Montar o identificador do build da xApp {{ xapps_name }}
+  ansible.builtin.set_fact:
+    xapps_build_id: "{{ xapps_src_sum.stdout | trim }} {{ xapps_flexric_head.stdout | trim }} {{ xapps_cc }}"
+    xapps_build_dir: "{{ xapps_build_root }}/{{ xapps_name }}"
+
+- name: Verificar o executável da xApp {{ xapps_name }}
+  ansible.builtin.stat:
+    path: "{{ xapps_build_dir }}/{{ xapps_name }}"
+  register: xapps_binary
+
+- name: Ler o registro do último build da xApp {{ xapps_name }}
+  ansible.builtin.slurp:
+    src: "{{ xapps_state_prefix }}{{ xapps_name }}.build"
+  register: xapps_stamp
+  failed_when: false
+
+- name: Decidir se é preciso compilar a xApp {{ xapps_name }}
+  ansible.builtin.set_fact:
+    xapps_build_needed: >-
+      {{ (not xapps_binary.stat.exists)
+         or ((xapps_stamp.content | default('') | b64decode | trim) != xapps_build_id) }}
+
+- name: Compilar a xApp {{ xapps_name }}
+  when: xapps_build_needed | bool
+  block:
+    # O CMake guarda o compilador e os caminhos no cache: começa do zero
+    - name: Apagar o build anterior da xApp {{ xapps_name }}
+      ansible.builtin.file:
+        path: "{{ xapps_build_dir }}"
+        state: absent
+
+    - name: Configurar com o CMake a xApp {{ xapps_name }}
+      ansible.builtin.command:
+        argv:
+          - cmake
+          - -S
+          - "{{ xapps_dest_dir }}/{{ xapps_name }}"
+          - -B
+          - "{{ xapps_build_dir }}"
+          - -DFLEXRIC_SRC_DIR={{ xapps_flexric_src_dir }}
+          - -DFLEXRIC_BUILD_DIR={{ xapps_flexric_build_dir }}
+      environment:
+        CC: "{{ xapps_cc }}"
+      changed_when: true
+      become: true
+      become_user: "{{ lab_user }}"
+
+    - name: Compilar a xApp {{ xapps_name }}
+      ansible.builtin.command:
+        cmd: cmake --build {{ xapps_build_dir }} -j{{ ansible_facts['processor_vcpus'] }}
+      changed_when: true
+      become: true
+      become_user: "{{ lab_user }}"
+
+    - name: Rodar os testes da xApp {{ xapps_name }}
+      ansible.builtin.command:
+        cmd: ctest --test-dir {{ xapps_build_dir }} --output-on-failure
+      changed_when: false
+      become: true
+      become_user: "{{ lab_user }}"
+
+    - name: Registrar o build da xApp {{ xapps_name }}
+      ansible.builtin.copy:
+        dest: "{{ xapps_state_prefix }}{{ xapps_name }}.build"
+        content: "{{ xapps_build_id }}\n"
+        mode: "0644"
+
+- name: Pôr no PATH a xApp {{ xapps_name }}
+  ansible.builtin.file:
+    src: "{{ xapps_build_dir }}/{{ xapps_name }}"
+    dest: "{{ xapps_bin_dir }}/{{ xapps_name }}"
+    state: link

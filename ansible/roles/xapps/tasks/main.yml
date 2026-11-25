@@ -1,0 +1,31 @@
+---
+# Role xapps: copia e compila as xApps de xapps/ (guia da Etapa 2, seção
+# "xApp de monitoração KPM por slice"). Depende das roles oai_ran e flexric.
+
+- name: Conferir se o FlexRIC já foi compilado
+  ansible.builtin.stat:
+    path: "{{ xapps_flexric_build_dir }}/src/xApp/libe42_xapp_shared.so"
+  register: xapps_flexric_lib
+
+- name: Falhar se a biblioteca de xApp do FlexRIC não existir
+  ansible.builtin.assert:
+    that:
+      - xapps_flexric_lib.stat.exists
+    fail_msg: >-
+      {{ xapps_flexric_build_dir }}/src/xApp/libe42_xapp_shared.so não existe.
+      Rode antes a role flexric.
+    quiet: true
+
+- name: Criar a pasta do código das xApps
+  ansible.builtin.file:
+    path: "{{ xapps_dest_dir }}"
+    state: directory
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0755"
+
+- name: Compilar cada xApp
+  ansible.builtin.include_tasks: build_xapp.yml
+  loop: "{{ xapps_list }}"
+  loop_control:
+    loop_var: xapps_name
