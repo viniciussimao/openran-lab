@@ -502,4 +502,61 @@ Recursos durante o T5, com cotas, comparados com o fork sem cotas: CPU da VM de 
 
 - **Os cerca de 25% de PRBs que nenhum UE usa.** Candidatos: slots em que o UE não pode ser escalonado (processos HARQ esperando confirmação, restrições de `k1`), o slot misto do TDD contado como cheio, ou PRBs livres no `vrb_map` que o proportional fair não aproveita. Investigar com o `nrMAC_stats.log` lido durante o tráfego e, se preciso, um contador por slot no log do escalonador.
 - **Fork como padrão.** A PoC passou nos critérios de aceite. Ligar `oai_slice_scheduler_enabled` por padrão é uma mudança à parte, a registrar na decisão 20.
-- **Próximo passo:** a xApp de monitoração KPM por slice (REPORT estilo 4 com a S-NSSAI de 4 octetos) e, depois, o handler E2SM-RC estilo 2 sobre `nr_slice_policy_set()`.
+- **Próximo passo:** a [xApp de monitoração KPM por slice](#xapp-de-monitoração-kpm-por-slice) e, depois, o handler E2SM-RC estilo 2 sobre `nr_slice_policy_set()`.
+
+## xApp de monitoração KPM por slice
+
+Primeira peça da xApp de slicing ([decisão 21](../decisions.md#21-xapp-de-monitoração-kpm-por-slice)). A `slice_kpm_monitor` assina, para cada slice, o REPORT estilo 4 do E2SM-KPM com a S-NSSAI de 4 octetos (SST + SD). A cada segundo, soma por slice as medidas por UE `RRU.PrbTotDl`, `RRU.PrbTotUl`, `DRB.UEThpDl` e `DRB.UEThpUl`. O código fica em [`xapps/slice_kpm_monitor/`](../../xapps/slice_kpm_monitor/), sob a Apache-2.0:
+
+| Parte | Arquivo | Papel |
+| --- | --- | --- |
+| Núcleo | `src/skm_core.{h,c}` | S-NSSAI, soma por slice, descarte do primeiro relatório de cada UE, saída em texto e JSON Lines. Não depende de RIC; tem testes em `tests/` |
+| Adaptador FlexRIC | `src/skm_flexric.c` | Conecta pela E42, monta as assinaturas e converte as indicações para o núcleo. Portar para outro Near-RT RIC é trocar só este arquivo |
+
+### Correção no agente E2 do fork
+
+Com uma assinatura por slice, o agente E2 do OAI `2026.w46` calculava errado as medidas por UE:
+
+- os contadores do relatório anterior ficavam em vetores globais, indexados pela posição do UE na lista de cada relatório;
+- a referência de PRBs da célula era uma só para todas as assinaturas.
+
+O UE do slice 1 e o do slice 2, ambos na posição 0 da sua assinatura, usavam o mesmo contador, e cada relatório reiniciava a referência das outras assinaturas.
+
+A branch `kpm-per-slice` do fork (commit `12537539`, a partir de `slice-scheduler`) guarda esse estado por assinatura e por UE, em `ran_func_kpm_state.{h,c}`. O primeiro relatório de cada UE ainda parte de zero, como no upstream; a xApp o descarta.
+
+### Compilação na VM (manual)
+
+O repositório não é compartilhado com a VM. Clone o branch na VM e compile contra o FlexRIC já instalado, com o mesmo compilador dele:
+
+```bash
+git clone -b feat/stage2-slice-kpm-xapp https://github.com/viniciussimao/openran-lab.git ~/openran-lab-src
+ls ~/openairinterface5g/openair2/E2AP/flexric/build/src/xApp/ | grep e42_xapp
+FR=~/openairinterface5g/openair2/E2AP/flexric
+CC=gcc-12 cmake -S ~/openran-lab-src/xapps/slice_kpm_monitor -B ~/skm-build -DFLEXRIC_SRC_DIR=$FR -DFLEXRIC_BUILD_DIR=$FR/build
+cmake --build ~/skm-build -j4 && ctest --test-dir ~/skm-build --output-on-failure
+```
+
+Se a ligação com a `libe42_xapp_shared.so` falhar, há uma alternativa: compilar a xApp dentro da árvore do FlexRIC, ligando a pasta em `examples/xApp/c/` e incluindo um `add_subdirectory` no `CMakeLists.txt` de lá. O `CMakeLists.txt` da xApp detecta o alvo `e42_xapp` e usa a biblioteca estática.
+
+### Uso
+
+```bash
+XAPP_DURATION=60 ~/skm-build/slice_kpm_monitor --slice 1.000001 --slice 1.000002 --json /tmp/skm.jsonl --per-ue
+```
+
+A saída tem uma linha por slice por relatório, por exemplo:
+
+```
+slice 1.000001  UEs 1 (novos 0)  prb_dl_pct 22.0  prb_ul_pct 1.0  thp_dl_kbps 39100.0  thp_ul_kbps 120.0
+```
+
+O JSON Lines (`--json`) tem os mesmos campos, mais o início da coleta em `ts_us`. É o formato que o coletor OpenTelemetry da Etapa 3 vai ler. Um slice sem UE não gera linha, porque o agente E2 não envia indicação vazia.
+
+### Critérios de aceite
+
+| Teste | Cenário | Critério |
+| --- | --- | --- |
+| K1 Separação | Perfil `30-70`, os dois UEs conectados | Uma linha por slice por segundo, cada uma com o UE dele (`--per-ue`) |
+| K2 PRBs | Perfil `30-70`, os dois saturados (`janela k2 60 200M 1 2`) | `prb_dl_pct` de cada slice, na média do trecho, a até 3 p.p. do `%disp` do `slice-prb-share.sh` |
+| K3 Vazão | Mesmo trecho do K2 | `thp_dl_kbps` de cada slice coerente com o iperf3 do UE |
+| K4 Convivência | K2 com a `xapp_kpm_moni` rodando junto | Os números da `slice_kpm_monitor` não mudam; nenhum assert no gNB |

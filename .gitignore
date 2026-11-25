@@ -16,6 +16,9 @@ CLAUDE.local.md
 *.crt
 *.csr
 
+# Builds das xApps
+xapps/*/build/
+
 # Resultados brutos de experimentos
 experiments/results/
 
