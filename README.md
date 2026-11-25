@@ -115,9 +115,14 @@ openran-lab/
 │   ├── group_vars/all.yml   # versões fixas
 │   └── roles/               # common, docker, oai_ran, flexric, oai_cn5g
 ├── configs/
-│   └── ue.conf              # configuração do nrUE (copiada para a VM)
+│   ├── ue.conf              # configuração do nrUE (copiada para a VM)
+│   └── ue-slice1.conf, ue-slice2.conf  # um UE por slice (Etapa 2)
 ├── scripts/
-│   └── preflight.sh         # verificação do host
+│   ├── preflight.sh         # verificação do host
+│   ├── multi-ue-ns.sh       # namespaces dos nrUE (Etapa 2)
+│   └── slice-prb-share.sh   # resumo das linhas [SLICE] do gNB (Etapa 2)
+├── xapps/
+│   └── slice_kpm_monitor/   # xApp de KPM por slice (Etapa 2)
 └── docs/
     ├── architecture.md
     ├── decisions.md         # registro das decisões técnicas

@@ -190,3 +190,30 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
   - a xApp de slicing monta a mensagem RC estilo 2 com os IDs de parâmetros da especificação, porque a biblioteca RC do FlexRIC não traz constantes para essa ação;
   - se a OAI publicar o código da demo de controle de slice por E2SM-RC mostrada com a VIAVI, comparar com o fork antes de escrever o handler E2;
   - o [NOTICE](../NOTICE) cita o fork e a licença CSSL.
+
+## 21. xApp de monitoração KPM por slice
+
+**Data:** 2026-11-25.
+
+- **Contexto:** a `xapp_kpm_moni` do FlexRIC filtra os UEs pela S-NSSAI só com o SST, que o agente E2 do OAI trata como `1.ffffff`, e não vê os UEs dos slices `1.000001` e `1.000002`. A solução é assinar o REPORT estilo 4 uma vez por slice, com a S-NSSAI de 4 octetos. Ao ler o agente, apareceu outro problema: com duas assinaturas ao mesmo tempo, as medidas por UE saíam erradas, porque os contadores do relatório anterior ficavam em vetores globais indexados pela posição do UE em cada relatório.
+- **Decisão:**
+  - **Correção no fork.** O estado das medidas por UE passa a ser guardado por assinatura e por UE, num arquivo novo do agente E2 (`ran_func_kpm_state.{h,c}`), na branch `kpm-per-slice` do fork, sob a CSSL v1.0.
+  - **xApp própria no openran-lab.** A `slice_kpm_monitor` fica em `xapps/slice_kpm_monitor/`, em C, sob a Apache-2.0, distribuída só como código-fonte. O núcleo (`skm_core`) não depende de RIC e tem testes; o adaptador FlexRIC é o único arquivo ligado à API do FlexRIC, seguindo a separação da decisão 20.
+  - **Saída em JSON Lines**, uma linha por slice por relatório, para a Etapa 3 ler sem depender do formato de texto.
+- **Motivo:** o KPM por slice é a base da xApp de slicing e do dashboard. Corrigir o agente no fork mantém a xApp simples e vale para qualquer xApp com mais de uma assinatura, inclusive as do FlexRIC. Com a xApp fora do FlexRIC, ela fica versionada com o laboratório e portável.
+- **Consequências:**
+  - o FlexRIC também está sob a CSSL v1.0. A xApp é código próprio sob a Apache-2.0, e quem compila a liga localmente ao FlexRIC. A compatibilidade para distribuir binários prontos não foi analisada; por isso, o openran-lab distribui só o código-fonte;
+  - a compilação é manual até ser validada no servidor (critérios K1 a K4 no [guia da Etapa 2](stages/02-multi-slice.md#xapp-de-monitoração-kpm-por-slice)). Depois, uma role Ansible a automatiza, e `oai_fork_commit` passa a apontar para a branch `kpm-per-slice`;
+  - a correção do agente pode ser proposta ao upstream, o que exigiria o ICLA da OSA (decisão 20).
+
+## 22. Correção do RIC do FlexRIC
+
+**Data:** 2026-11-25.
+
+- **Contexto:** no K4 da xApp de KPM por slice, com duas xApps assinando o mesmo gNB, o cancelamento das assinaturas de uma apagava as da outra. A causa é um erro de uma linha no Near-RT RIC do FlexRIC (`eq_xapp_ric_gen_id`, em `src/ric/iApp/xapp_ric_id.c`), que compara o ID da xApp com ele mesmo. Detalhes no [guia da Etapa 2](stages/02-multi-slice.md#correção-no-ric-do-flexric).
+- **Decisão:**
+  - a correção foi validada à mão na VM (K4 passou com ela) e fica documentada como passo manual até ganhar um lugar permanente;
+  - o lugar permanente segue a decisão 20: nenhum código do FlexRIC (CSSL v1.0) no openran-lab. Como o FlexRIC é um submódulo do OAI, a correção vai para um fork do FlexRIC, e a branch `kpm-per-slice` do fork do OAI passa a apontar o submódulo para ele;
+  - a correção é proposta ao upstream do FlexRIC.
+- **Motivo:** a Etapa 2 e as seguintes rodam mais de uma xApp ao mesmo tempo (a de KPM, a de slicing e as de teste). Sem a correção, qualquer xApp que termina derruba as assinaturas das outras.
+- **Consequências:** o provisionamento passa a depender de mais um fork, até o upstream incorporar a correção. Enquanto ela for manual, o clone do FlexRIC na VM fica modificado e precisa ser restaurado antes de um `vagrant provision`.

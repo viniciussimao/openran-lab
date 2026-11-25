@@ -502,4 +502,102 @@ Recursos durante o T5, com cotas, comparados com o fork sem cotas: CPU da VM de 
 
 - **Os cerca de 25% de PRBs que nenhum UE usa.** Candidatos: slots em que o UE não pode ser escalonado (processos HARQ esperando confirmação, restrições de `k1`), o slot misto do TDD contado como cheio, ou PRBs livres no `vrb_map` que o proportional fair não aproveita. Investigar com o `nrMAC_stats.log` lido durante o tráfego e, se preciso, um contador por slot no log do escalonador.
 - **Fork como padrão.** A PoC passou nos critérios de aceite. Ligar `oai_slice_scheduler_enabled` por padrão é uma mudança à parte, a registrar na decisão 20.
-- **Próximo passo:** a xApp de monitoração KPM por slice (REPORT estilo 4 com a S-NSSAI de 4 octetos) e, depois, o handler E2SM-RC estilo 2 sobre `nr_slice_policy_set()`.
+- **Próximo passo:** a [xApp de monitoração KPM por slice](#xapp-de-monitoração-kpm-por-slice) e, depois, o handler E2SM-RC estilo 2 sobre `nr_slice_policy_set()`.
+
+## xApp de monitoração KPM por slice
+
+Primeira peça da xApp de slicing ([decisão 21](../decisions.md#21-xapp-de-monitoração-kpm-por-slice)). A `slice_kpm_monitor` assina, para cada slice, o REPORT estilo 4 do E2SM-KPM com a S-NSSAI de 4 octetos (SST + SD). A cada segundo, soma por slice as medidas por UE `RRU.PrbTotDl`, `RRU.PrbTotUl`, `DRB.UEThpDl` e `DRB.UEThpUl`. O código fica em [`xapps/slice_kpm_monitor/`](../../xapps/slice_kpm_monitor/), sob a Apache-2.0:
+
+| Parte | Arquivo | Papel |
+| --- | --- | --- |
+| Núcleo | `src/skm_core.{h,c}` | S-NSSAI, soma por slice, descarte do primeiro relatório de cada UE, saída em texto e JSON Lines. Não depende de RIC; tem testes em `tests/` |
+| Adaptador FlexRIC | `src/skm_flexric.c` | Conecta pela E42, monta as assinaturas e converte as indicações para o núcleo. Portar para outro Near-RT RIC é trocar só este arquivo |
+
+### Correção no agente E2 do fork
+
+Com uma assinatura por slice, o agente E2 do OAI `2026.w46` calculava errado as medidas por UE:
+
+- os contadores do relatório anterior ficavam em vetores globais, indexados pela posição do UE na lista de cada relatório;
+- a referência de PRBs da célula era uma só para todas as assinaturas.
+
+O UE do slice 1 e o do slice 2, ambos na posição 0 da sua assinatura, usavam o mesmo contador, e cada relatório reiniciava a referência das outras assinaturas.
+
+A branch `kpm-per-slice` do fork (commit `12537539`, a partir de `slice-scheduler`) guarda esse estado por assinatura e por UE, em `ran_func_kpm_state.{h,c}`. O primeiro relatório de cada UE ainda parte de zero, como no upstream; a xApp o descarta.
+
+### Correção no RIC do FlexRIC
+
+No K4, com a `slice_kpm_monitor` e a `xapp_kpm_moni` rodando juntas, o cancelamento das assinaturas de uma xApp apagava as da outra. O RIC traduz o `RIC_REQ_ID` de cada xApp (as duas numeram a partir de 1) para um ID próprio com o gNB, e a função que compara os pedidos, `eq_xapp_ric_gen_id` em `src/ric/iApp/xapp_ric_id.c`, compara a xApp com ela mesma:
+
+```c
+if(eq_xapp_id(m0->xapp_id, m0->xapp_id) == false)   // devia ser m1->xapp_id
+```
+
+Com isso, o RIC ignora de qual xApp vem o pedido. O cancelamento da assinatura 1 da `xapp_kpm_moni` caía na primeira assinatura 1 do mapa, a da `slice_kpm_monitor`. A xApp que perdeu as assinaturas parava de receber indicações e abortava com `assoc_rb_tree_extract ... key not found`; a outra abortava por timeout. O agente E2 do gNB funcionava normalmente.
+
+A correção é trocar o segundo `m0` por `m1` e recompilar só o RIC. Por enquanto ela é manual, na VM ([decisão 22](../decisions.md#22-correção-do-ric-do-flexric)):
+
+```bash
+cd ~/openairinterface5g/openair2/E2AP/flexric
+sed -i 's/eq_xapp_id(m0->xapp_id, m0->xapp_id)/eq_xapp_id(m0->xapp_id, m1->xapp_id)/' src/ric/iApp/xapp_ric_id.c
+grep -n "eq_xapp_id(m0" src/ric/iApp/xapp_ric_id.c
+cmake --build build --target nearRT-RIC -j8
+```
+
+Depois, reinicie o RIC, o gNB e os UEs. A mudança deixa o clone do FlexRIC modificado, e a role `oai_ran` exige o clone limpo: antes de um `vagrant provision`, desfaça com `git -C ~/openairinterface5g/openair2/E2AP/flexric checkout -- src/ric/iApp/xapp_ric_id.c`.
+
+### Compilação na VM (manual)
+
+O repositório não é compartilhado com a VM. Clone o branch na VM e compile contra o FlexRIC já instalado, com o mesmo compilador dele:
+
+```bash
+git clone -b feat/stage2-slice-kpm-xapp https://github.com/viniciussimao/openran-lab.git ~/openran-lab-src
+ls ~/openairinterface5g/openair2/E2AP/flexric/build/src/xApp/ | grep e42_xapp
+ls ~/openairinterface5g/openair2/E2AP/flexric/build/examples/xApp/c/monitor/RRC_MESSAGES/libasn1_nr_rrc.a
+FR=~/openairinterface5g/openair2/E2AP/flexric
+CC=gcc-12 cmake -S ~/openran-lab-src/xapps/slice_kpm_monitor -B ~/skm-build -DFLEXRIC_SRC_DIR=$FR -DFLEXRIC_BUILD_DIR=$FR/build
+cmake --build ~/skm-build -j4 && ctest --test-dir ~/skm-build --output-on-failure
+```
+
+A `libe42_xapp_shared.so` do FlexRIC não inclui o runtime ASN.1 nem as mensagens RRC, que ficam na biblioteca estática `libasn1_nr_rrc.a`, compilada com os exemplos de xApp. O `CMakeLists.txt` da xApp liga as duas.
+
+Se a ligação ainda falhar, há uma alternativa: compilar a xApp dentro da árvore do FlexRIC, ligando a pasta em `examples/xApp/c/` e incluindo um `add_subdirectory` no `CMakeLists.txt` de lá. O `CMakeLists.txt` da xApp detecta o alvo `e42_xapp` e usa a biblioteca estática.
+
+### Uso
+
+```bash
+XAPP_DURATION=60 ~/skm-build/slice_kpm_monitor --slice 1.000001 --slice 1.000002 --json /tmp/skm.jsonl --per-ue
+```
+
+A saída tem uma linha por slice por relatório, por exemplo:
+
+```
+slice 1.000001  UEs 1 (novos 0)  prb_dl_pct 22.0  prb_ul_pct 1.0  thp_dl_kbps 39100.0  thp_ul_kbps 120.0
+```
+
+O JSON Lines (`--json`) tem os mesmos campos, mais o início da coleta em `ts_us`. É o formato que o coletor OpenTelemetry da Etapa 3 vai ler. A xApp acrescenta ao fim do arquivo: apague-o antes de cada teste (`rm -f /tmp/skm.jsonl`), ou as médias misturam rodadas. Um slice sem UE não gera linha, porque o agente E2 não envia indicação vazia.
+
+### Critérios de aceite
+
+| Teste | Cenário | Critério |
+| --- | --- | --- |
+| K1 Separação | Perfil `30-70`, os dois UEs conectados | Uma linha por slice por segundo, cada uma com o UE dele (`--per-ue`) |
+| K2 PRBs | Perfil `30-70`, os dois saturados (`janela k2 60 200M 1 2`) | `prb_dl_pct` de cada slice, na média, a até 3 p.p. do `%disp` do `slice-prb-share.sh`, com as duas medições no mesmo intervalo |
+| K3 Vazão | Perfil `30-70`, os dois sem saturação (`janela k3b 60 20M 1 2`) | `thp_dl_kbps` de cada slice a até 5% da vazão do iperf3 do UE. Com saturação, o KPM mostra o que o RLC do gNB transmite e fica acima do iperf3 |
+| K4 Convivência | K2 com a `xapp_kpm_moni` rodando junto | Os números da `slice_kpm_monitor` não mudam; as duas xApps terminam sem erro; nenhum assert no gNB. Exige a [correção do RIC](#correção-no-ric-do-flexric) |
+
+### Resultados (2026-11-25)
+
+Fork `12537539` (`kpm-per-slice`), perfil `30-70`, dois UEs. No K1 a K4, UDP de 200 Mbit/s por UE (saturados), e a xApp mede 40 s no meio dos 60 s da `janela`. No K2b e no K3b, a xApp começa antes do tráfego e termina depois dele, e as médias usam só os relatórios com tráfego (`thp_dl_kbps` acima de 5000), o mesmo intervalo da `janela`.
+
+| Teste | Resultado | Situação |
+| --- | --- | --- |
+| K1 | Uma linha por slice por segundo; o slice `1.000001` mostra só o UE 1 e o `1.000002` só o UE 2. Sem tráfego, `prb_dl_pct` 0 e `prb_ul_pct` de 3% a 4% | Passou |
+| K2 | Slice 1: 22,0% contra `%disp` de 22,3% a 22,4% nas quatro rodadas. Slice 2: de 51,0% a 52,4% contra 48,3% a 49,5% (+2,6 a +3,2 p.p.), com intervalos diferentes | Ver K2b |
+| K2b | Mesmo intervalo: slice 1 com 21,8% contra 22,3% (−0,5 p.p.); slice 2 com 50,8% contra 48,2% (+2,6 p.p.) | Passou |
+| K3 | Saturado, o KPM fica acima do iperf3: 48,4 contra 36,5 Mbit/s no slice 1 e 117,5 contra 75,1 Mbit/s no slice 2 | Esperado (ver abaixo) |
+| K3b | 20 Mbit/s por UE, sem perda no iperf3: KPM com 20,5 contra 20,1 Mbit/s (+2,0%) no slice 1 e 20,2 contra 20,0 Mbit/s (+1,0%) no slice 2 | Passou |
+| K4 | Com a correção do RIC: médias de 22,0% e 52,3% (iguais às do K2), 39 relatórios por slice, `xapp_kpm_moni` com `SUCCESSFULLY` e nenhum assert no gNB. Sem a correção, as duas xApps abortavam no cancelamento | Passou |
+
+- **K2:** o `slice-prb-share.sh` cobre os 60 s inteiros, incluindo o começo e o fim do tráfego; a xApp, só 40 s com o tráfego estável. O slice 1 fica no teto de 30% e não muda; o slice 2, que ocupa o que sobra, sente a diferença. O critério passa a comparar as duas medições no mesmo intervalo (K2b). Mesmo assim, o slice 2 fica cerca de 2,5 p.p. acima no KPM, dentro da tolerância; a causa não foi investigada.
+- **K3:** no agente E2, o `DRB.UEThpDl` é calculado com os bytes de PDU que o RLC do gNB transmitiu (`rlc.txpdu_bytes`). Com saturação, isso inclui retransmissões, cabeçalhos e pacotes que o nrUE perde antes de chegar ao iperf3 (perda de 60% a 79%). A razão entre os slices pelo KPM (2,43) acompanha a dos PRBs (2,38), não a do iperf3 (2,06): o KPM mostra o que o gNB transmite. O critério passa a valer sem saturação (K3b), em que a diferença de 1% a 2% corresponde aos cabeçalhos IP e UDP que o iperf3 não conta.
+- **PRBs sem saturação:** no K3b, o KPM mostra 7,3% e 8,0% dos PRBs, e o `slice-prb-share.sh`, 14,9% e 15,5%. As bases são diferentes: o KPM divide pelos PRBs de todos os slots DL (106 por slot), e o `%disp` do escalonador, pelos PRBs livres só nos slots em que ele distribuiu PRBs entre os slices. Com saturação, as duas bases coincidem; sem saturação, a do escalonador fica menor (88 mil contra 168 mil PRBs por período). Por isso o K2 só vale com os slices saturados.
