@@ -205,3 +205,15 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
   - o FlexRIC também está sob a CSSL v1.0. A xApp é código próprio sob a Apache-2.0, e quem compila a liga localmente ao FlexRIC. A compatibilidade para distribuir binários prontos não foi analisada; por isso, o openran-lab distribui só o código-fonte;
   - a compilação é manual até ser validada no servidor (critérios K1 a K4 no [guia da Etapa 2](stages/02-multi-slice.md#xapp-de-monitoração-kpm-por-slice)). Depois, uma role Ansible a automatiza, e `oai_fork_commit` passa a apontar para a branch `kpm-per-slice`;
   - a correção do agente pode ser proposta ao upstream, o que exigiria o ICLA da OSA (decisão 20).
+
+## 22. Correção do RIC do FlexRIC
+
+**Data:** 2026-11-25.
+
+- **Contexto:** no K4 da xApp de KPM por slice, com duas xApps assinando o mesmo gNB, o cancelamento das assinaturas de uma apagava as da outra. A causa é um erro de uma linha no Near-RT RIC do FlexRIC (`eq_xapp_ric_gen_id`, em `src/ric/iApp/xapp_ric_id.c`), que compara o ID da xApp com ele mesmo. Detalhes no [guia da Etapa 2](stages/02-multi-slice.md#correção-no-ric-do-flexric).
+- **Decisão:**
+  - a correção foi validada à mão na VM (K4 passou com ela) e fica documentada como passo manual até ganhar um lugar permanente;
+  - o lugar permanente segue a decisão 20: nenhum código do FlexRIC (CSSL v1.0) no openran-lab. Como o FlexRIC é um submódulo do OAI, a correção vai para um fork do FlexRIC, e a branch `kpm-per-slice` do fork do OAI passa a apontar o submódulo para ele;
+  - a correção é proposta ao upstream do FlexRIC.
+- **Motivo:** a Etapa 2 e as seguintes rodam mais de uma xApp ao mesmo tempo (a de KPM, a de slicing e as de teste). Sem a correção, qualquer xApp que termina derruba as assinaturas das outras.
+- **Consequências:** o provisionamento passa a depender de mais um fork, até o upstream incorporar a correção. Enquanto ela for manual, o clone do FlexRIC na VM fica modificado e precisa ser restaurado antes de um `vagrant provision`.
