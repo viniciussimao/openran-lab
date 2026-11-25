@@ -421,14 +421,25 @@ Com `oai_slice_scheduler_enabled: true` em `ansible/group_vars/all.yml`, a role 
 | `~/gnb-slices-ded40.conf` | `dedicated_ratio` e `min_ratio` 40 / 0, `max_ratio` 100 / 100 | T4 |
 | `~/gnb-slices-100-100.conf` | `max_ratio` 100 / 100 | controle: escalonador ligado, sem limite |
 
-Os perfis ficam em `oai_ran_gnb_quota_profiles`, nos defaults da role. Enquanto a PoC não vira padrão, a chave é ligada só na cópia local do servidor e desfeita com `git checkout ansible/group_vars/all.yml` ao terminar.
+Os perfis ficam em `oai_ran_gnb_quota_profiles`, nos defaults da role. Durante a PoC, a chave era ligada só na cópia local do servidor; desde a [decisão 23](
+## 23. Fork do OAI como padrão
+
+**Data:** 2026-11-25.
+
+- **Contexto:** a decisão 20 deixou o fork do OAI desligado em `group_vars` até a PoC passar. A PoC passou (T0 a T6), e a xApp de KPM por slice também (K1 a K4), com o fork e a correção do RIC (decisões 21 e 22).
+- **Decisão:** `oai_slice_scheduler_enabled: true` por padrão, com `oai_fork_branch: kpm-per-slice` e `oai_fork_commit` no `95a3e328`. A role nova `xapps` compila a `slice_kpm_monitor` no provisionamento, depois das roles `oai_ran`, `flexric` e `oai_cn5g`.
+- **Motivo:** a Etapa 2 depende do escalonador por slice, do KPM por assinatura e da correção do RIC. Com a chave desligada, cada teste exigia mudar a cópia local do `group_vars` e compilar a xApp à mão.
+- **Consequências:**
+  - um `vagrant provision` numa VM da Etapa 1 recompila o gNB e o FlexRIC;
+  - voltar ao OAI upstream é pôr a chave em `false`: o gNB fica sem o escalonador por slice, sem o KPM por assinatura e sem a correção do RIC (a xApp continua compilando, mas o K4 falha).
+), ela fica ligada por padrão.
 
 ### Roteiro
 
 No servidor, provisione duas vezes. A primeira recompila; na segunda, o esperado é `changed=0`.
 
 ```bash
-cd ~/vinicius/openran-lab && git pull && sed -i 's/^oai_slice_scheduler_enabled: false$/oai_slice_scheduler_enabled: true/' ansible/group_vars/all.yml
+cd ~/vinicius/openran-lab && git pull
 vagrant provision ran 2>&1 | tee /tmp/provision-fork-1.log | tail -4
 vagrant provision ran 2>&1 | tee /tmp/provision-fork-2.log | tail -4
 ```
@@ -501,8 +512,19 @@ Recursos durante o T5, com cotas, comparados com o fork sem cotas: CPU da VM de 
 ### Pontos em aberto
 
 - **Os cerca de 25% de PRBs que nenhum UE usa.** Candidatos: slots em que o UE não pode ser escalonado (processos HARQ esperando confirmação, restrições de `k1`), o slot misto do TDD contado como cheio, ou PRBs livres no `vrb_map` que o proportional fair não aproveita. Investigar com o `nrMAC_stats.log` lido durante o tráfego e, se preciso, um contador por slot no log do escalonador.
-- **Fork como padrão.** A PoC passou nos critérios de aceite. Ligar `oai_slice_scheduler_enabled` por padrão é uma mudança à parte, a registrar na decisão 20.
-- **Próximo passo:** a [xApp de monitoração KPM por slice](#xapp-de-monitoração-kpm-por-slice) e, depois, o handler E2SM-RC estilo 2 sobre `nr_slice_policy_set()`.
+- **Fork como padrão.** Ligado em 2026-11-25, depois da PoC e da [xApp de monitoração KPM por slice](#xapp-de-monitoração-kpm-por-slice) ([decisão 23](
+## 23. Fork do OAI como padrão
+
+**Data:** 2026-11-25.
+
+- **Contexto:** a decisão 20 deixou o fork do OAI desligado em `group_vars` até a PoC passar. A PoC passou (T0 a T6), e a xApp de KPM por slice também (K1 a K4), com o fork e a correção do RIC (decisões 21 e 22).
+- **Decisão:** `oai_slice_scheduler_enabled: true` por padrão, com `oai_fork_branch: kpm-per-slice` e `oai_fork_commit` no `95a3e328`. A role nova `xapps` compila a `slice_kpm_monitor` no provisionamento, depois das roles `oai_ran`, `flexric` e `oai_cn5g`.
+- **Motivo:** a Etapa 2 depende do escalonador por slice, do KPM por assinatura e da correção do RIC. Com a chave desligada, cada teste exigia mudar a cópia local do `group_vars` e compilar a xApp à mão.
+- **Consequências:**
+  - um `vagrant provision` numa VM da Etapa 1 recompila o gNB e o FlexRIC;
+  - voltar ao OAI upstream é pôr a chave em `false`: o gNB fica sem o escalonador por slice, sem o KPM por assinatura e sem a correção do RIC (a xApp continua compilando, mas o K4 falha).
+)).
+- **Próximo passo:** o handler E2SM-RC estilo 2 sobre `nr_slice_policy_set()`, para uma xApp mudar as cotas pela E2.
 
 ## xApp de monitoração KPM por slice
 
@@ -522,7 +544,7 @@ Com uma assinatura por slice, o agente E2 do OAI `2026.w46` calculava errado as 
 
 O UE do slice 1 e o do slice 2, ambos na posição 0 da sua assinatura, usavam o mesmo contador, e cada relatório reiniciava a referência das outras assinaturas.
 
-A branch `kpm-per-slice` do fork (commit `12537539`, a partir de `slice-scheduler`) guarda esse estado por assinatura e por UE, em `ran_func_kpm_state.{h,c}`. O primeiro relatório de cada UE ainda parte de zero, como no upstream; a xApp o descarta.
+A branch `kpm-per-slice` do fork (commit `12537539`, a partir de `slice-scheduler`) guarda esse estado por assinatura e por UE, em `ran_func_kpm_state.{h,c}`. O primeiro relatório de cada UE ainda parte de zero, como no upstream; a xApp o descarta. O commit seguinte da branch, `95a3e328`, atualiza o submódulo do FlexRIC (seção abaixo) e é o fixado em `oai_fork_commit`.
 
 ### Correção no RIC do FlexRIC
 
@@ -534,38 +556,30 @@ if(eq_xapp_id(m0->xapp_id, m0->xapp_id) == false)   // devia ser m1->xapp_id
 
 Com isso, o RIC ignora de qual xApp vem o pedido. O cancelamento da assinatura 1 da `xapp_kpm_moni` caía na primeira assinatura 1 do mapa, a da `slice_kpm_monitor`. A xApp que perdeu as assinaturas parava de receber indicações e abortava com `assoc_rb_tree_extract ... key not found`; a outra abortava por timeout. O agente E2 do gNB funcionava normalmente.
 
-A correção é trocar o segundo `m0` por `m1` e recompilar só o RIC. Por enquanto ela é manual, na VM ([decisão 22](../decisions.md#22-correção-do-ric-do-flexric)):
+O upstream do FlexRIC corrigiu esse erro no commit `ea6d9b4` (2026-11-13), 19 commits depois do `18c3325` que a tag `2026.w46` do OAI fixa. O commit `95a3e328` da branch `kpm-per-slice` do fork aponta o submódulo para o `ea6d9b4`, e o provisionamento recompila o RIC e o gNB ([decisão 22](../decisions.md#22-correção-do-ric-do-flexric)). As outras mudanças entre os dois commits são documentação, arquivos de CI, a `xapp_kpm_moni` (que passa a pular os estilos de REPORT sem suporte) e uma linha do TC SM.
 
-```bash
-cd ~/openairinterface5g/openair2/E2AP/flexric
-sed -i 's/eq_xapp_id(m0->xapp_id, m0->xapp_id)/eq_xapp_id(m0->xapp_id, m1->xapp_id)/' src/ric/iApp/xapp_ric_id.c
-grep -n "eq_xapp_id(m0" src/ric/iApp/xapp_ric_id.c
-cmake --build build --target nearRT-RIC -j8
-```
+Se você aplicou a correção à mão na VM (o `sed` no `xapp_ric_id.c`), desfaça antes do `vagrant provision`, porque a role `oai_ran` exige o clone limpo: `git -C ~/openairinterface5g/openair2/E2AP/flexric checkout -- src/ric/iApp/xapp_ric_id.c`.
 
-Depois, reinicie o RIC, o gNB e os UEs. A mudança deixa o clone do FlexRIC modificado, e a role `oai_ran` exige o clone limpo: antes de um `vagrant provision`, desfaça com `git -C ~/openairinterface5g/openair2/E2AP/flexric checkout -- src/ric/iApp/xapp_ric_id.c`.
+### Compilação na VM
 
-### Compilação na VM (manual)
-
-O repositório não é compartilhado com a VM. Clone o branch na VM e compile contra o FlexRIC já instalado, com o mesmo compilador dele:
-
-```bash
-git clone -b feat/stage2-slice-kpm-xapp https://github.com/viniciussimao/openran-lab.git ~/openran-lab-src
-ls ~/openairinterface5g/openair2/E2AP/flexric/build/src/xApp/ | grep e42_xapp
-ls ~/openairinterface5g/openair2/E2AP/flexric/build/examples/xApp/c/monitor/RRC_MESSAGES/libasn1_nr_rrc.a
-FR=~/openairinterface5g/openair2/E2AP/flexric
-CC=gcc-12 cmake -S ~/openran-lab-src/xapps/slice_kpm_monitor -B ~/skm-build -DFLEXRIC_SRC_DIR=$FR -DFLEXRIC_BUILD_DIR=$FR/build
-cmake --build ~/skm-build -j4 && ctest --test-dir ~/skm-build --output-on-failure
-```
+A role `xapps` copia cada pasta de `xapps/` para `~/openran-lab-xapps/` na VM, compila contra o FlexRIC do submódulo do OAI (com o mesmo gcc-12), roda os testes (`ctest`) e põe o executável no `PATH` (`/usr/local/bin`). O build fica em `~/xapps-build/<xApp>/`. A role recompila quando o código da xApp ou o commit do FlexRIC mudam.
 
 A `libe42_xapp_shared.so` do FlexRIC não inclui o runtime ASN.1 nem as mensagens RRC, que ficam na biblioteca estática `libasn1_nr_rrc.a`, compilada com os exemplos de xApp. O `CMakeLists.txt` da xApp liga as duas.
 
-Se a ligação ainda falhar, há uma alternativa: compilar a xApp dentro da árvore do FlexRIC, ligando a pasta em `examples/xApp/c/` e incluindo um `add_subdirectory` no `CMakeLists.txt` de lá. O `CMakeLists.txt` da xApp detecta o alvo `e42_xapp` e usa a biblioteca estática.
+Para compilar à mão, por exemplo ao mexer no código direto na VM:
+
+```bash
+FR=~/openairinterface5g/openair2/E2AP/flexric
+CC=gcc-12 cmake -S ~/openran-lab-xapps/slice_kpm_monitor -B ~/xapps-build/slice_kpm_monitor -DFLEXRIC_SRC_DIR=$FR -DFLEXRIC_BUILD_DIR=$FR/build
+cmake --build ~/xapps-build/slice_kpm_monitor -j4 && ctest --test-dir ~/xapps-build/slice_kpm_monitor --output-on-failure
+```
+
+Uma xApp nova entra em `xapps_list`, nos defaults da role, e segue a mesma convenção: um `CMakeLists.txt` que aceita `FLEXRIC_SRC_DIR` e `FLEXRIC_BUILD_DIR` e gera um executável com o nome da pasta.
 
 ### Uso
 
 ```bash
-XAPP_DURATION=60 ~/skm-build/slice_kpm_monitor --slice 1.000001 --slice 1.000002 --json /tmp/skm.jsonl --per-ue
+XAPP_DURATION=60 slice_kpm_monitor --slice 1.000001 --slice 1.000002 --json /tmp/skm.jsonl --per-ue
 ```
 
 A saída tem uma linha por slice por relatório, por exemplo:
@@ -597,6 +611,7 @@ Fork `12537539` (`kpm-per-slice`), perfil `30-70`, dois UEs. No K1 a K4, UDP de 
 | K3 | Saturado, o KPM fica acima do iperf3: 48,4 contra 36,5 Mbit/s no slice 1 e 117,5 contra 75,1 Mbit/s no slice 2 | Esperado (ver abaixo) |
 | K3b | 20 Mbit/s por UE, sem perda no iperf3: KPM com 20,5 contra 20,1 Mbit/s (+2,0%) no slice 1 e 20,2 contra 20,0 Mbit/s (+1,0%) no slice 2 | Passou |
 | K4 | Com a correção do RIC: médias de 22,0% e 52,3% (iguais às do K2), 39 relatórios por slice, `xapp_kpm_moni` com `SUCCESSFULLY` e nenhum assert no gNB. Sem a correção, as duas xApps abortavam no cancelamento | Passou |
+| K4 provisionado | Fork `95a3e328` e FlexRIC `ea6d9b4`, compilados pelo provisionamento (role `xapps` para a xApp): médias de 22,0% e 51,0%, 39 relatórios por slice, `xapp_kpm_moni` com `SUCCESSFULLY` e nenhum assert no gNB | Passou |
 
 - **K2:** o `slice-prb-share.sh` cobre os 60 s inteiros, incluindo o começo e o fim do tráfego; a xApp, só 40 s com o tráfego estável. O slice 1 fica no teto de 30% e não muda; o slice 2, que ocupa o que sobra, sente a diferença. O critério passa a comparar as duas medições no mesmo intervalo (K2b). Mesmo assim, o slice 2 fica cerca de 2,5 p.p. acima no KPM, dentro da tolerância; a causa não foi investigada.
 - **K3:** no agente E2, o `DRB.UEThpDl` é calculado com os bytes de PDU que o RLC do gNB transmitiu (`rlc.txpdu_bytes`). Com saturação, isso inclui retransmissões, cabeçalhos e pacotes que o nrUE perde antes de chegar ao iperf3 (perda de 60% a 79%). A razão entre os slices pelo KPM (2,43) acompanha a dos PRBs (2,38), não a do iperf3 (2,06): o KPM mostra o que o gNB transmite. O critério passa a valer sem saturação (K3b), em que a diferença de 1% a 2% corresponde aos cabeçalhos IP e UDP que o iperf3 não conta.

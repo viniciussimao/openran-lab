@@ -185,7 +185,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 - **Motivo:** nenhum caminho nativo muda os PRBs de um slice nessa tag. Um fork fixado por commit mantém a regra "sem código de terceiros" no openran-lab e deixa o patch versionado e revisável, com um histórico que facilita o rebase em tags futuras. Começar sem E2 isola o risco: primeiro valida-se o escalonador; depois, o controle. O E2SM-RC mantém a decisão 18.
 - **Consequências:**
   - o patch deve ser pequeno e localizado (arquivos novos mais um registro mínimo em arquivos existentes), para facilitar o rebase. Ao trocar a tag do OAI, a branch do fork é refeita sobre a tag nova e testada de novo;
-  - o fork só vira o padrão em `group_vars` quando a PoC passar nos critérios de aceite do [guia da Etapa 2](stages/02-multi-slice.md); até lá, ele é ativado pela variável `oai_slice_scheduler_enabled`;
+  - o fork só vira o padrão em `group_vars` quando a PoC passar nos critérios de aceite do [guia da Etapa 2](stages/02-multi-slice.md); até lá, ele é ativado pela variável `oai_slice_scheduler_enabled`. Virou o padrão na [decisão 23](#23-fork-do-oai-como-padrão);
   - **resultado da PoC (2026-11-25):** o commit `125c80f` do fork passou nos testes T0 a T6. Sem cotas, o gNB se comporta como o upstream; com cotas, a divisão de PRBs segue o `max_ratio` (31,6 / 68,4 para 30 / 70), o `min_ratio` e o `dedicated_ratio`, sem custo de CPU mensurável e sem quedas em 10 minutos. Detalhes nos [resultados da PoC](stages/02-multi-slice.md#resultados-da-poc);
   - a xApp de slicing monta a mensagem RC estilo 2 com os IDs de parâmetros da especificação, porque a biblioteca RC do FlexRIC não traz constantes para essa ação;
   - se a OAI publicar o código da demo de controle de slice por E2SM-RC mostrada com a VIAVI, comparar com o fork antes de escrever o handler E2;
@@ -212,8 +212,18 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 
 - **Contexto:** no K4 da xApp de KPM por slice, com duas xApps assinando o mesmo gNB, o cancelamento das assinaturas de uma apagava as da outra. A causa é um erro de uma linha no Near-RT RIC do FlexRIC (`eq_xapp_ric_gen_id`, em `src/ric/iApp/xapp_ric_id.c`), que compara o ID da xApp com ele mesmo. Detalhes no [guia da Etapa 2](stages/02-multi-slice.md#correção-no-ric-do-flexric).
 - **Decisão:**
-  - a correção foi validada à mão na VM (K4 passou com ela) e fica documentada como passo manual até ganhar um lugar permanente;
-  - o lugar permanente segue a decisão 20: nenhum código do FlexRIC (CSSL v1.0) no openran-lab. Como o FlexRIC é um submódulo do OAI, a correção vai para um fork do FlexRIC, e a branch `kpm-per-slice` do fork do OAI passa a apontar o submódulo para ele;
-  - a correção é proposta ao upstream do FlexRIC.
-- **Motivo:** a Etapa 2 e as seguintes rodam mais de uma xApp ao mesmo tempo (a de KPM, a de slicing e as de teste). Sem a correção, qualquer xApp que termina derruba as assinaturas das outras.
-- **Consequências:** o provisionamento passa a depender de mais um fork, até o upstream incorporar a correção. Enquanto ela for manual, o clone do FlexRIC na VM fica modificado e precisa ser restaurado antes de um `vagrant provision`.
+  - a correção foi validada à mão na VM (K4 passou com ela);
+  - o upstream já tinha corrigido o erro, no commit `ea6d9b4` do FlexRIC (2026-11-13). A branch `kpm-per-slice` do fork do OAI aponta o submódulo para esse commit (commit `95a3e328` do fork). Não é preciso fork do FlexRIC nem patch no openran-lab, e nenhum código do FlexRIC (CSSL v1.0) entra neste repositório.
+- **Motivo:** a Etapa 2 e as seguintes rodam mais de uma xApp ao mesmo tempo (a de KPM, a de slicing e as de teste). Sem a correção, qualquer xApp que termina derruba as assinaturas das outras. Usar o commit do upstream evita manter mais um fork.
+- **Consequências:** o FlexRIC do laboratório fica 19 commits à frente do que a tag `2026.w46` do OAI fixa; entre eles, só documentação, CI, a `xapp_kpm_moni` e uma linha do TC SM. Ao trocar a tag do OAI, conferir se o submódulo novo já inclui o `ea6d9b4`.
+
+## 23. Fork do OAI como padrão
+
+**Data:** 2026-11-25.
+
+- **Contexto:** a decisão 20 deixou o fork do OAI desligado em `group_vars` até a PoC passar. A PoC passou (T0 a T6), e a xApp de KPM por slice também (K1 a K4), com o fork e a correção do RIC (decisões 21 e 22).
+- **Decisão:** `oai_slice_scheduler_enabled: true` por padrão, com `oai_fork_branch: kpm-per-slice` e `oai_fork_commit` no `95a3e328`. A role nova `xapps` compila a `slice_kpm_monitor` no provisionamento, depois das roles `oai_ran`, `flexric` e `oai_cn5g`.
+- **Motivo:** a Etapa 2 depende do escalonador por slice, do KPM por assinatura e da correção do RIC. Com a chave desligada, cada teste exigia mudar a cópia local do `group_vars` e compilar a xApp à mão.
+- **Consequências:**
+  - um `vagrant provision` numa VM da Etapa 1 recompila o gNB e o FlexRIC;
+  - voltar ao OAI upstream é pôr a chave em `false`: o gNB fica sem o escalonador por slice, sem o KPM por assinatura e sem a correção do RIC (a xApp continua compilando, mas o K4 falha).

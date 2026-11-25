@@ -1,0 +1,23 @@
+---
+# xApps próprias do openran-lab, compiladas na VM contra o FlexRIC do
+# submódulo do OAI (role flexric). Cada xApp é uma pasta de xapps/ com um
+# CMakeLists.txt que aceita FLEXRIC_SRC_DIR e FLEXRIC_BUILD_DIR e gera um
+# executável com o nome da pasta.
+xapps_src_dir: "{{ playbook_dir }}/../xapps"
+xapps_list:
+  - slice_kpm_monitor
+
+# Código copiado para a VM e diretório de build de cada xApp
+xapps_dest_dir: "{{ lab_home }}/openran-lab-xapps"
+xapps_build_root: "{{ lab_home }}/xapps-build"
+
+# Mesmo FlexRIC e mesmo compilador da role flexric
+xapps_flexric_src_dir: "{{ oai_src_dir }}/openair2/E2AP/flexric"
+xapps_flexric_build_dir: "{{ xapps_flexric_src_dir }}/build"
+xapps_cc: gcc-12
+
+# Executáveis ficam no PATH por um link simbólico
+xapps_bin_dir: /usr/local/bin
+
+# Registro do último build de cada xApp (código + commit do FlexRIC)
+xapps_state_prefix: "{{ lab_state_dir }}/xapp-"

@@ -18,3 +18,5 @@
     - oai_ran
     - flexric
     - oai_cn5g
+    # Etapa 2: xApps próprias, compiladas contra o FlexRIC acima
+    - xapps

@@ -113,7 +113,7 @@ openran-lab/
 │   ├── ansible.cfg
 │   ├── site.yml             # playbook principal
 │   ├── group_vars/all.yml   # versões fixas
-│   └── roles/               # common, docker, oai_ran, flexric, oai_cn5g
+│   └── roles/               # common, docker, oai_ran, flexric, oai_cn5g, xapps
 ├── configs/
 │   ├── ue.conf              # configuração do nrUE (copiada para a VM)
 │   └── ue-slice1.conf, ue-slice2.conf  # um UE por slice (Etapa 2)
