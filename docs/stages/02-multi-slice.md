@@ -587,14 +587,17 @@ O JSON Lines (`--json`) tem os mesmos campos, mais o início da coleta em `ts_us
 
 ### Resultados (2026-11-25)
 
-Fork `12537539` (`kpm-per-slice`), perfil `30-70`, dois UEs com UDP de 200 Mbit/s cada (saturados). A xApp mede 40 s no meio dos 60 s da `janela`.
+Fork `12537539` (`kpm-per-slice`), perfil `30-70`, dois UEs. No K1 a K4, UDP de 200 Mbit/s por UE (saturados), e a xApp mede 40 s no meio dos 60 s da `janela`. No K2b e no K3b, a xApp começa antes do tráfego e termina depois dele, e as médias usam só os relatórios com tráfego (`thp_dl_kbps` acima de 5000), o mesmo intervalo da `janela`.
 
 | Teste | Resultado | Situação |
 | --- | --- | --- |
 | K1 | Uma linha por slice por segundo; o slice `1.000001` mostra só o UE 1 e o `1.000002` só o UE 2. Sem tráfego, `prb_dl_pct` 0 e `prb_ul_pct` de 3% a 4% | Passou |
-| K2 | Slice 1: 22,0% contra `%disp` de 22,3% a 22,4% nas quatro rodadas. Slice 2: de 51,0% a 52,4% contra 48,3% a 49,5% (+2,6 a +3,2 p.p.) | Slice 1 passou; slice 2 no limite, a confirmar no mesmo intervalo |
-| K3 | Saturado, o KPM fica acima do iperf3: 48,4 contra 36,5 Mbit/s no slice 1 e 117,5 contra 75,1 Mbit/s no slice 2 | Explicado; falta a rodada sem saturação |
+| K2 | Slice 1: 22,0% contra `%disp` de 22,3% a 22,4% nas quatro rodadas. Slice 2: de 51,0% a 52,4% contra 48,3% a 49,5% (+2,6 a +3,2 p.p.), com intervalos diferentes | Ver K2b |
+| K2b | Mesmo intervalo: slice 1 com 21,8% contra 22,3% (−0,5 p.p.); slice 2 com 50,8% contra 48,2% (+2,6 p.p.) | Passou |
+| K3 | Saturado, o KPM fica acima do iperf3: 48,4 contra 36,5 Mbit/s no slice 1 e 117,5 contra 75,1 Mbit/s no slice 2 | Esperado (ver abaixo) |
+| K3b | 20 Mbit/s por UE, sem perda no iperf3: KPM com 20,5 contra 20,1 Mbit/s (+2,0%) no slice 1 e 20,2 contra 20,0 Mbit/s (+1,0%) no slice 2 | Passou |
 | K4 | Com a correção do RIC: médias de 22,0% e 52,3% (iguais às do K2), 39 relatórios por slice, `xapp_kpm_moni` com `SUCCESSFULLY` e nenhum assert no gNB. Sem a correção, as duas xApps abortavam no cancelamento | Passou |
 
-- **K2:** o `slice-prb-share.sh` cobre os 60 s inteiros, incluindo o começo e o fim do tráfego; a xApp, só 40 s com o tráfego estável. O slice 1 fica no teto de 30% e não muda; o slice 2, que ocupa o que sobra, sente a diferença. O critério passa a comparar as duas medições no mesmo intervalo.
-- **K3:** no agente E2, o `DRB.UEThpDl` é calculado com os bytes de PDU que o RLC do gNB transmitiu (`rlc.txpdu_bytes`). Com saturação, isso inclui retransmissões, cabeçalhos e pacotes que o nrUE perde antes de chegar ao iperf3 (perda de 60% a 79%). A razão entre os slices pelo KPM (2,43) acompanha a dos PRBs (2,38), não a do iperf3 (2,06): o KPM mostra o que o gNB transmite. O critério passa a valer sem saturação.
+- **K2:** o `slice-prb-share.sh` cobre os 60 s inteiros, incluindo o começo e o fim do tráfego; a xApp, só 40 s com o tráfego estável. O slice 1 fica no teto de 30% e não muda; o slice 2, que ocupa o que sobra, sente a diferença. O critério passa a comparar as duas medições no mesmo intervalo (K2b). Mesmo assim, o slice 2 fica cerca de 2,5 p.p. acima no KPM, dentro da tolerância; a causa não foi investigada.
+- **K3:** no agente E2, o `DRB.UEThpDl` é calculado com os bytes de PDU que o RLC do gNB transmitiu (`rlc.txpdu_bytes`). Com saturação, isso inclui retransmissões, cabeçalhos e pacotes que o nrUE perde antes de chegar ao iperf3 (perda de 60% a 79%). A razão entre os slices pelo KPM (2,43) acompanha a dos PRBs (2,38), não a do iperf3 (2,06): o KPM mostra o que o gNB transmite. O critério passa a valer sem saturação (K3b), em que a diferença de 1% a 2% corresponde aos cabeçalhos IP e UDP que o iperf3 não conta.
+- **PRBs sem saturação:** no K3b, o KPM mostra 7,3% e 8,0% dos PRBs, e o `slice-prb-share.sh`, 14,9% e 15,5%. As bases são diferentes: o KPM divide pelos PRBs de todos os slots DL (106 por slot), e o `%disp` do escalonador, pelos PRBs livres só nos slots em que ele distribuiu PRBs entre os slices. Com saturação, as duas bases coincidem; sem saturação, a do escalonador fica menor (88 mil contra 168 mil PRBs por período). Por isso o K2 só vale com os slices saturados.
