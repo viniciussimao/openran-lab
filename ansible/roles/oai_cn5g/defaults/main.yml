@@ -17,3 +17,23 @@ oai_cn5g_compose_names:
 oai_cn5g_up_timeout: 1800
 oai_cn5g_wait_timeout: 600
 oai_cn5g_poll_interval: 15
+
+# Etapa 2: config.yaml do core com os slices de lab_slices (group_vars).
+# É gerado em conf/ ao lado do original do OAI, que fica intacto, e montado
+# no lugar dele em cada NF pelo override do compose.
+oai_cn5g_config_src: "{{ oai_cn5g_dir }}/conf/config.yaml"
+oai_cn5g_lab_config_name: config.lab.yaml
+
+# QoS das assinaturas locais do SMF para os slices do laboratório (iguais
+# às do DNN "oai" no config.yaml do OAI)
+oai_cn5g_lab_5qi: 9
+oai_cn5g_lab_session_ambr: "10Gbps"
+
+# Cabeçalhos do config.yaml do OAI depois dos quais os slices são
+# inseridos. A role confere que cada um aparece uma única vez.
+oai_cn5g_config_headers:
+  snssais: "\nsnssais:\n"
+  amf_nssai: "\n      nssai:\n"
+  smf_info: "\n    sNssaiSmfInfoList:\n"
+  smf_subscriptions: "\n  local_subscription_infos:\n"
+  upf_info: "\n    sNssaiUpfInfoList:\n"

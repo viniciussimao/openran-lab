@@ -1,0 +1,21 @@
+{#
+  Configuração do gNB com cotas por slice (Etapa 2, fork do OAI): a mesma
+  do gnb-slices.conf, com a seção slice_policies dentro de MACRLCs, logo
+  depois da linha com oai_ran_gnb_policy_anchor. item é um perfil de
+  oai_ran_gnb_quota_profiles.
+#}
+{% set base %}{% include 'gnb-slices.conf.j2' %}{% endset %}
+{% set policies = [] %}
+{% for s in lab_slices if s.name in item.quotas %}
+{%   set q = item.quotas[s.name] %}
+{%   set _ = policies.append('{ sst = %d; sd = 0x%s; min_ratio = %d; max_ratio = %d; dedicated_ratio = %d; }' | format(s.sst | int, s.sd, q.min_ratio | int, q.max_ratio | int, q.dedicated_ratio | int)) %}
+{% endfor %}
+# Perfil de cotas "{{ item.name }}" (oai_ran_gnb_quota_profiles). Não edite: é refeito a cada provisionamento.
+{% for line in base.splitlines() %}
+{{ line }}
+{%   if oai_ran_gnb_policy_anchor in line %}
+  slice_policies = (
+    {{ policies | join(",\n    ") }}
+  );
+{%   endif %}
+{% endfor %}

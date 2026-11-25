@@ -23,7 +23,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 17. [Etapa 8: comparação controlada entre Near-RT RICs](#17-etapa-8-comparação-controlada-entre-near-rt-rics)
 18. [Preferência por E2SM-RC no controle de slice](#18-preferência-por-e2sm-rc-no-controle-de-slice)
 19. [Observações do E2 na Etapa 1](#19-observações-do-e2-na-etapa-1)
-20. [Controle de slice por E2SM-RC com patch próprio no OAI (proposta)](#20-controle-de-slice-por-e2sm-rc-com-patch-próprio-no-oai-proposta)
+20. [Escalonador de slices num fork próprio do OAI](#20-escalonador-de-slices-num-fork-próprio-do-oai)
 
 ## 1. Repositório oficial do OAI
 
@@ -155,7 +155,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 - **Contexto:** o OAI expõe dois caminhos possíveis para controlar slices: o E2SM-RC (padrão O-RAN) e o SLICE SM próprio do FlexRIC. O gNB da tag fixa anuncia o E2SM-RC (decisão 19).
 - **Decisão:** a xApp de slicing usa o E2SM-RC, se o controle de slice funcionar por ele no OAI `2026.w46`.
 - **Motivo:** é o padrão que o Near-RT RIC da O-RAN SC também entende, o que facilita a Etapa 8.
-- **Consequências:** o teste do controle de slice (E2SM-RC ou SLICE SM) abre a Etapa 2. Risco listado em "Riscos e decisões em aberto" no [roadmap](roadmap.md). A investigação do código mostrou que o OAI `2026.w46` não controla slices por nenhum service model; o caminho proposto está na decisão 20.
+- **Consequências:** o teste do controle de slice (E2SM-RC ou SLICE SM) abre a Etapa 2. Risco listado em "Riscos e decisões em aberto" no [roadmap](roadmap.md). A investigação do código mostrou que o OAI `2026.w46` não controla slices por nenhum service model; o caminho escolhido está na decisão 20.
 
 ## 19. Observações do E2 na Etapa 1
 
@@ -166,21 +166,27 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 - **Motivo:** confirmar o suporte a E2SM-RC (decisão 18) e ter uma linha de base para as medições do experimento.
 - **Consequências:** os valores valem para rfsim no servidor de teste; não representam rádio real.
 
-## 20. Controle de slice por E2SM-RC com patch próprio no OAI (proposta)
+## 20. Escalonador de slices num fork próprio do OAI
 
-**Status:** proposta, até a validação no servidor descrita em "A confirmar no servidor" no [guia da Etapa 2](stages/02-multi-slice.md#5-a-confirmar-no-servidor).
+**Data:** 2026-11-19. Substitui a versão "proposta" registrada com a investigação do PR #4.
 
 - **Contexto:** a [investigação do controle de slice](stages/02-multi-slice.md#investigação-controle-de-slice), feita por leitura do código do OAI `2026.w46` e do FlexRIC do submódulo, mostrou que:
   - no E2SM-RC, o OAI implementa só o CONTROL estilo 1 (QoS flow mapping, que só faz `printf`) e o estilo 3 (handover); não há estilo 2 ("Radio Resource Allocation Control");
   - o E2SM-CCC e o SLICE aparecem no E2 Setup porque o agente anuncia todo plugin da pasta de service models, mas o OAI não implementa o controle de nenhum dos dois (o SLICE é um stub com dados aleatórios);
   - o escalonador MAC do gNB usa só proportional fair, sem cotas por slice e sem opção para trocar a política, embora cada candidato já traga a S-NSSAI do primeiro DRB.
-- **Decisão:** escrever um patch próprio para o OAI, aplicado pela role `oai_ran` no provisionamento depois de validado à mão, com:
-  - uma política de alocação de PRBs por slice no MAC (`dl_rb_alloc` e depois `ul_rb_alloc`), com cotas mínima, máxima e dedicada por S-NSSAI (modelo `RRMPolicyRatio` da 3GPP TS 28.541) e proportional fair dentro de cada slice;
-  - o CONTROL estilo 2 do E2SM-RC, ação "Slice-level PRB quota" (E2SM-RC v1.03, seção 7.6.3), anunciado no E2 Setup e ligado a essa política.
-- **Motivo:** é o único caminho que de fato muda os PRBs de um slice nessa tag. O E2SM-RC mantém a decisão 18 (portabilidade para o Near-RT RIC da O-RAN SC na Etapa 8). O E2SM-CCC (`O-RRMPolicyRatio`) fica como alternativa, porque usa o mesmo trabalho no MAC e só muda o adaptador E2. O SLICE SM foi descartado: exigiria o mesmo patch e não é padrão.
+- **Decisão:**
+  - **Fork do OAI.** O escalonador por slice é um patch próprio no MAC do gNB, mantido no fork `https://github.com/viniciussimao/openairinterface5g`, na branch `slice-scheduler`, criada a partir do commit `cb98db5b` (tag `2026.w46`). O openran-lab só referencia o fork por URL e commit em `ansible/group_vars/all.yml`; nenhum código do OAI entra neste repositório.
+  - **Licença.** O código do fork segue a licença do OAI, a Collaborative Standards Software License v1.0 (CSSL). Os arquivos novos levam o mesmo cabeçalho `SPDX-License-Identifier: LicenseRef-CSSL-1.0`. A CSSL dá licença de patentes gratuita para estudo, teste e pesquisa, e licença FRAND para outros usos. Contribuir o patch upstream exigiria assinar o ICLA da OpenAirInterface Software Alliance (OSA).
+  - **Semântica das cotas.** Cotas por S-NSSAI (`sst` + `sd`) em porcentagem dos PRBs, alinhadas ao `RRMPolicyRatio` da 3GPP TS 28.541: `min_ratio`, `max_ratio` e `dedicated_ratio`. Dentro de cada slice, o proportional fair original continua valendo.
+  - **Prova de conceito primeiro, sem E2.** Nesta fase as cotas são fixas, lidas de uma seção opcional do arquivo de configuração do gNB; sem a seção, o comportamento é idêntico ao upstream. A PoC cobre só o downlink.
+  - **API interna pensada para o E2.** As cotas passam por uma API isolada num arquivo próprio do fork, que a configuração usa agora. Na fase seguinte, o handler do E2SM-RC (CONTROL estilo 2, ação 6 "Slice-level PRB quota", E2SM-RC v1.03, seção 7.6.3) só traduz os parâmetros para essa API.
+  - **Near-RT RIC.** O FlexRIC continua sendo o Near-RT RIC principal. O Near-RT RIC da O-RAN SC fica para a Etapa 8 (decisão 17).
+  - **xApp portável.** Na fase seguinte, a xApp de slicing tem a lógica de decisão separada da API do FlexRIC, numa camada própria, para ser portada para o Near-RT RIC da O-RAN SC. Essa separação segue a recomendação do tutorial da IEEE Communications Surveys & Tutorials (COMST) de 2026.
+- **Motivo:** nenhum caminho nativo muda os PRBs de um slice nessa tag. Um fork fixado por commit mantém a regra "sem código de terceiros" no openran-lab e deixa o patch versionado e revisável, com um histórico que facilita o rebase em tags futuras. Começar sem E2 isola o risco: primeiro valida-se o escalonador; depois, o controle. O E2SM-RC mantém a decisão 18.
 - **Consequências:**
-  - o projeto passa a manter um patch sobre o código do OAI, que continua sendo baixado no provisionamento. Ao trocar a tag do OAI, o patch precisa ser reaplicado e testado;
-  - antes de versionar o patch, confirmar que ele é compatível com a regra "sem código de terceiros" e com a licença do OAI (`LicenseRef-CSSL-1.0`): um diff carrega linhas de contexto do OAI. Alternativas: um arquivo novo próprio para a política, mais um diff mínimo de registro em `main.c` e no agente E2, ou um fork do OAI fixado por commit;
+  - o patch deve ser pequeno e localizado (arquivos novos mais um registro mínimo em arquivos existentes), para facilitar o rebase. Ao trocar a tag do OAI, a branch do fork é refeita sobre a tag nova e testada de novo;
+  - o fork só vira o padrão em `group_vars` quando a PoC passar nos critérios de aceite do [guia da Etapa 2](stages/02-multi-slice.md); até lá, ele é ativado pela variável `oai_slice_scheduler_enabled`;
+  - **resultado da PoC (2026-11-25):** o commit `125c80f` do fork passou nos testes T0 a T6. Sem cotas, o gNB se comporta como o upstream; com cotas, a divisão de PRBs segue o `max_ratio` (31,6 / 68,4 para 30 / 70), o `min_ratio` e o `dedicated_ratio`, sem custo de CPU mensurável e sem quedas em 10 minutos. Detalhes nos [resultados da PoC](stages/02-multi-slice.md#resultados-da-poc);
   - a xApp de slicing monta a mensagem RC estilo 2 com os IDs de parâmetros da especificação, porque a biblioteca RC do FlexRIC não traz constantes para essa ação;
-  - se a OAI publicar o código da demo de controle de slice por E2SM-RC mostrada com a VIAVI, reavaliar esta decisão antes de escrever o patch;
-  - confiança: alta de que não há caminho nativo; média quanto ao esforço do patch no MAC e ao suporte do estilo 2 na biblioteca RC do FlexRIC.
+  - se a OAI publicar o código da demo de controle de slice por E2SM-RC mostrada com a VIAVI, comparar com o fork antes de escrever o handler E2;
+  - o [NOTICE](../NOTICE) cita o fork e a licença CSSL.

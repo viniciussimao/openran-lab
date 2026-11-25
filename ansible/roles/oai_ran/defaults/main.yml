@@ -14,13 +14,64 @@ oai_ran_build_stamp: "{{ lab_state_dir }}/oai_ran.build"
 # Registro antigo, de antes do diretório de estado. É lido uma vez (para
 # não recompilar à toa) e apagado.
 oai_ran_legacy_build_stamp: "{{ oai_ran_build_dir }}/.openran-lab-build"
-oai_ran_build_id: "{{ oai_commit }} {{ e2ap_version }} {{ kpm_version }}"
+# Commit que o clone deve ter: o do fork com o escalonador de slices
+# ligado (oai_slice_scheduler_enabled), senão o da tag
+oai_ran_commit: "{{ oai_fork_commit if oai_slice_scheduler_enabled | bool else oai_commit }}"
+oai_ran_fork_remote: fork
+oai_ran_build_id: "{{ oai_ran_commit }} {{ e2ap_version }} {{ kpm_version }}"
 
 # Limites dos builds longos, em segundos (async/poll)
 oai_ran_deps_timeout: 3600
 oai_ran_build_timeout: 7200
 oai_ran_poll_interval: 30
 
-# Configuração do nrUE copiada para a home do lab_user
-oai_ran_ue_conf_src: "{{ playbook_dir }}/../configs/ue.conf"
-oai_ran_ue_conf_dest: "{{ lab_home }}/ue.conf"
+# Configurações do nrUE copiadas de configs/ para a home do lab_user:
+# ue.conf (Etapa 1) e um arquivo por slice (Etapa 2, ver lab_slices)
+oai_ran_configs_dir: "{{ playbook_dir }}/../configs"
+oai_ran_ue_confs:
+  - ue.conf
+  - ue-slice1.conf
+  - ue-slice2.conf
+
+# Etapa 2: configuração do gNB com os slices de lab_slices. É gerada a
+# partir da configuração do gNB da Etapa 1, trocando só a snssaiList.
+oai_ran_gnb_conf_src: "{{ oai_src_dir }}/targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band78.fr1.106PRB.usrpb210.conf"
+oai_ran_gnb_slices_conf: "{{ lab_home }}/gnb-slices.conf"
+oai_ran_gnb_snssai_upstream: "snssaiList = ({ sst = 1; })"
+
+# Scripts de scripts/ copiados para a home do lab_user (não há pasta
+# compartilhada entre o host e a VM)
+oai_ran_scripts_dir: "{{ playbook_dir }}/../scripts"
+oai_ran_scripts:
+  - multi-ue-ns.sh
+  - slice-prb-share.sh
+
+# Etapa 2, com o escalonador ligado: uma configuração do gNB por perfil de
+# cotas, em ~/gnb-slices-<nome>.conf. Cada uma é o ~/gnb-slices.conf com a
+# seção slice_policies dentro de MACRLCs, logo depois da linha abaixo. As
+# cotas são em % dos PRBs DL do BWP (TS 28.541) e cada slice vem de
+# lab_slices pelo nome; slice fora da lista fica sem cota (min 0, max 100).
+oai_ran_gnb_policy_anchor: pusch_TargetSNRx10
+oai_ran_gnb_quota_profiles:
+  # T1, T2, T5 e T6: só tetos
+  - name: 30-70
+    quotas:
+      slice1: {min_ratio: 0, max_ratio: 30, dedicated_ratio: 0}
+      slice2: {min_ratio: 0, max_ratio: 70, dedicated_ratio: 0}
+  # T3: mínimo acima da metade para o slice 1
+  - name: min60
+    quotas:
+      slice1: {min_ratio: 60, max_ratio: 100, dedicated_ratio: 0}
+      slice2: {min_ratio: 0, max_ratio: 100, dedicated_ratio: 0}
+  # T4: 40% reservados para o slice 1. Com 20%, o outro slice ficaria com
+  # até 80%, acima do que um UE sozinho usa (cerca de 75% no rfsim), e o
+  # teste não mostraria nada
+  - name: ded40
+    quotas:
+      slice1: {min_ratio: 40, max_ratio: 100, dedicated_ratio: 40}
+      slice2: {min_ratio: 0, max_ratio: 100, dedicated_ratio: 0}
+  # Controle: escalonador ligado, sem nenhuma cota que limite
+  - name: 100-100
+    quotas:
+      slice1: {min_ratio: 0, max_ratio: 100, dedicated_ratio: 0}
+      slice2: {min_ratio: 0, max_ratio: 100, dedicated_ratio: 0}

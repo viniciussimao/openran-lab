@@ -8,13 +8,26 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Adicionado
 
+- Etapa 2, linha de base com dois slices (`1.000001` e `1.000002`, em `lab_slices` no `group_vars`): a role `oai_cn5g` gera `conf/config.lab.yaml` a partir do `config.yaml` do OAI, só inserindo os slices na AMF, no SMF e no UPF, e o override do compose o monta no lugar do original; a role `oai_ran` gera `~/gnb-slices.conf` a partir do `.conf` do gNB da Etapa 1, trocando só a `snssaiList`, e copia `configs/ue-slice1.conf`, `configs/ue-slice2.conf` e `scripts/multi-ue-ns.sh` para a VM.
+- Etapa 2, integração do escalonador por slice: `oai_slice_scheduler_enabled` (desligado por padrão até a PoC passar), `oai_fork_repo_url`, `oai_fork_branch` e `oai_fork_commit` no `group_vars`. Ligada, a role `oai_ran` põe o clone do OAI no commit do fork (só com o clone limpo) e recompila; desligada, volta ao commit da tag. Ligada, a role também gera `~/gnb-slices-<perfil>.conf` para os perfis de cotas de `oai_ran_gnb_quota_profiles` (`30-70`, `min60` e `ded40`, dos testes T1 a T6).
+- Guia da Etapa 2: roteiro e resultados dos testes da PoC. O escalonador passou nos testes T0 a T6 (31,6 / 68,4 dos PRBs para cotas de 30 / 70, mínimo e dedicados respeitados, 10 minutos sem quedas, KPM de célula recebido, sem custo de CPU mensurável). Os controles mostram o teto prático de um UE (75% dos PRBs disponíveis) e a simulação do rfsim cerca de 2,4 vezes mais rápida que o relógio. A decisão 20 registra o resultado; o troubleshooting ganhou dois casos dos testes.
+- Perfil de cotas `100-100` (controle, sem limite) em `oai_ran_gnb_quota_profiles`.
+- `scripts/slice-prb-share.sh`: resume as linhas `[SLICE]` do log do gNB num trecho do teste (PRBs DL por slice, em % dos disponíveis e dos usados, com novas e retransmissões).
+- `scripts/multi-ue-ns.sh`: cria e remove os network namespaces dos nrUE (um por UE), sem mexer no iptables.
+- Guia da Etapa 2: desenho aprovado do escalonador por slice (cotas no modelo `RRMPolicyRatio`, algoritmo, API, log), limitações conhecidas e roteiro da linha de base com o OAI upstream.
+- Pacote `sysstat` (`mpstat`, `pidstat`) na role `common`, para medir CPU por processo.
+- Guia da Etapa 2: resultados da rodada 1 da linha de base (dois slices registrados, ping 5/5 nos dois UEs, 95,5 Mbit/s com um UE e divisão 49/51 com dois, memória e CPU da VM) e roteiro refeito, com as medições num comando único durante o tráfego. Solução de problemas: a `oaitun_ue1` dos nrUE fica dentro do namespace de cada um.
+- Guia da Etapa 2: rodada 2 da linha de base, com NG Setup anunciando os dois slices, divisão 49/51 sem cotas, CPU da VM em 93% com os dois UEs saturados e memória por processo. Registra que a `xapp_kpm_moni` não reporta UEs com SD explícito (filtro S-NSSAI `1.ffffff` no agente E2 do OAI); a solução também entrou no troubleshooting.
+- Guia da Etapa 2: critérios de aceite T0 a T6 da PoC, com saturação UDP de `-b 100M` por UE e o T6 restrito ao KPM de célula; o KPM por UE e por slice fica para a xApp de monitoração própria, feita depois da PoC.
+- Fork do OAI em `viniciussimao/openairinterface5g` (branch `slice-scheduler`, a partir da tag `2026.w46`) para o escalonador por slice da Etapa 2. O NOTICE cita o fork e a licença CSSL v1.0.
 - Guia da Etapa 2 (`docs/stages/02-multi-slice.md`) com a investigação do controle de slice no OAI `2026.w46`: o que o CONTROL do E2SM-RC, do E2SM-CCC e do SLICE faz no agente E2, como o escalonador MAC trata slices, quais xApps de controle do FlexRIC são compatíveis, recomendação e testes a fazer no servidor.
 - Decisão 20 em `docs/decisions.md` (proposta): controle de slice por E2SM-RC estilo 2 com patch próprio no OAI (política de PRBs por slice no MAC).
 
 ### Alterado
 
+- README: o início rápido clona `https://github.com/viniciussimao/openran-lab.git` em vez do marcador `<seu-usuario>`.
+- Decisão 20 reescrita como decisão tomada (2026-11-19): escalonador por slice num fork próprio do OAI sob a CSSL v1.0, cotas no modelo `RRMPolicyRatio`, prova de conceito com cotas fixas no `.conf` do gNB e sem E2, API interna pronta para o E2SM-RC estilo 2, FlexRIC como Near-RT RIC principal e xApp de slicing com a lógica separada da API do FlexRIC.
 - README: Etapa 2 em andamento. Roadmap: risco do controle de slice atualizado com o resultado da investigação. Decisão 18 aponta para a decisão 20.
-
 - Contexto para agentes de IA reorganizado: as decisões técnicas saem do `CLAUDE.md` para o novo `docs/decisions.md` (contexto, decisão, motivo e consequências de cada uma); convenções, fluxo de trabalho e verificações vão para o novo `AGENTS.md`, neutro de ferramenta; o `CLAUDE.md` só importa o `AGENTS.md`; o contexto pessoal do mantenedor vai para um `CLAUDE.local.md` fora do Git (`.gitignore`). README e CONTRIBUTING.md apontam para os novos arquivos.
 
 ## [0.1.0] - 2026-11-17

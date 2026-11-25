@@ -54,6 +54,40 @@
   loop_control:
     label: "{{ item.key }}"
 
+# Etapa 2: os slices de lab_slices entram num config.yaml próprio, gerado
+# a partir do original do OAI (que fica intacto, para a cópia acima não
+# mudar a cada provisionamento) e montado no lugar dele pelo override.
+- name: Ler o config.yaml do CN5G
+  ansible.builtin.slurp:
+    src: "{{ oai_cn5g_config_src }}"
+  register: oai_cn5g_config_raw
+
+- name: Guardar o config.yaml do CN5G
+  ansible.builtin.set_fact:
+    oai_cn5g_upstream_config: "{{ oai_cn5g_config_raw.content | b64decode }}"
+
+- name: Conferir os pontos de inserção dos slices no config.yaml
+  ansible.builtin.assert:
+    that:
+      - (oai_cn5g_upstream_config.split(item.value) | length) == 2
+    fail_msg: >-
+      O cabeçalho {{ item.key }} ({{ item.value | trim }}) deveria aparecer uma
+      única vez em {{ oai_cn5g_config_src }}. O config.yaml do OAI mudou: revise
+      oai_cn5g_config_headers e templates/config.lab.yaml.j2.
+    quiet: true
+  loop: "{{ oai_cn5g_config_headers | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Gerar o config.yaml do core com os slices do laboratório
+  ansible.builtin.template:
+    src: config.lab.yaml.j2
+    dest: "{{ oai_cn5g_dir }}/conf/{{ oai_cn5g_lab_config_name }}"
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0644"
+  register: oai_cn5g_lab_config
+
 # O nome segue o arquivo principal (docker-compose.yaml ->
 # docker-compose.override.yaml), para o docker compose carregar o override
 # sozinho, inclusive quando o core é subido à mão
@@ -93,5 +127,18 @@
   poll: "{{ oai_cn5g_poll_interval }}"
   register: oai_cn5g_up
   changed_when: oai_cn5g_up.stderr is search('(Created|Recreated|Started|Pulled)')
+  become: true
+  become_user: "{{ lab_user }}"
+
+# O arquivo é montado por bind mount: um container já criado só lê a versão
+# nova se for recriado. Não roda quando o "up" acima já criou os containers.
+- name: Recriar o core quando o config.yaml dos slices mudar
+  ansible.builtin.command:
+    cmd: docker compose up -d --wait --wait-timeout {{ oai_cn5g_wait_timeout }} --force-recreate
+    chdir: "{{ oai_cn5g_dir }}"
+  when:
+    - oai_cn5g_lab_config is changed
+    - oai_cn5g_up is not changed
+  changed_when: true
   become: true
   become_user: "{{ lab_user }}"

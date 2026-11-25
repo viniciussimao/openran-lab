@@ -1,8 +1,18 @@
 # Gerenciado pelo openran-lab (role oai_cn5g). Não edite: é refeito a
 # cada provisionamento a partir de oai_cn5g_image_digests (group_vars).
-# Fixa cada imagem do core por digest, para o cenário ser reproduzível.
+# Fixa cada imagem do core por digest, para o cenário ser reproduzível, e
+# monta conf/{{ oai_cn5g_lab_config_name }} (com os slices da Etapa 2) no
+# lugar de conf/config.yaml. O compose junta os volumes pelo caminho no
+# container, então a montagem abaixo substitui a original.
 services:
 {% for service in oai_cn5g_services | sort %}
   {{ service }}:
     image: {{ oai_cn5g_image_digests[service] }}
+{% set config_mounts = oai_cn5g_services[service].volumes | default([]) | select('string') | select('search', ':[^:]*/etc/config\\.yaml$') | list %}
+{% if config_mounts | length > 0 %}
+    volumes:
+{% for mount in config_mounts %}
+      - ./conf/{{ oai_cn5g_lab_config_name }}:{{ mount.split(':')[1] }}
+{% endfor %}
+{% endif %}
 {% endfor %}
