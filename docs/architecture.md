@@ -23,7 +23,7 @@ VM ran    │
                   Core 5G OAI (CN5G)
 ```
 
-O rApp decide, a xApp executa e o Y1 mostra o resultado. Na Etapa 5, antes de o SMO existir, o portal chama um serviço de controle que fala direto com a xApp. Na Etapa 6, esse atalho dá lugar ao caminho SMO → rApp → A1 → E2.
+O rApp decide, a xApp executa e o Y1 mostra o resultado. O caminho SMO → rApp → A1 → E2 vem primeiro, na Etapa 3, acionado pela API de intenção do rApp. Na Etapa 6, o botão do portal passa a chamar essa API, e um atalho (um serviço de controle que fala direto com a xApp) entra para comparar os dois caminhos.
 
 Na Etapa 8, o FlexRIC e a terminação A1-P própria dão lugar ao Near-RT RIC da O-RAN SC, que termina o A1 com o A1 Mediator. Todo o resto do diagrama fica igual, para que os dois Near-RT RICs possam ser comparados no mesmo experimento.
 
@@ -32,7 +32,7 @@ Na Etapa 8, o FlexRIC e a terminação A1-P própria dão lugar ao Near-RT RIC d
 | Interface | Liga | Função no laboratório | Implementação |
 | --- | --- | --- | --- |
 | **E2** | Near-RT RIC ↔ gNB | Métricas (E2SM-KPM) e controle da RAN, laço de 10 ms a 1 s | Agente E2 do OAI + FlexRIC (Etapas 1 a 7) ou Near-RT RIC da O-RAN SC (Etapa 8) |
-| **A1** | Non-RT RIC → Near-RT RIC | Políticas declarativas (ex.: alvo de vazão de um slice) | Lado Non-RT: A1 Policy Management Service da O-RAN SC (pronto). Lado Near-RT: terminação A1-P própria no FlexRIC (Etapa 6) ou A1 Mediator da O-RAN SC (Etapa 8) |
+| **A1** | Non-RT RIC → Near-RT RIC | Políticas declarativas (ex.: alvo de vazão de um slice) | Lado Non-RT: A1 Policy Management Service da O-RAN SC (pronto). Lado Near-RT: terminação A1-P própria no FlexRIC (Etapa 3) ou A1 Mediator da O-RAN SC (Etapa 8) |
 | **O1** | SMO ↔ nós da RAN | Configuração, alarmes e desempenho via NETCONF/YANG e VES | O1 Adapter do OAI (pronto) + OAM da O-RAN SC: SDN-R/OpenDaylight e VES Collector (pronto) |
 | **Y1** | Near-RT RIC → consumidores externos | Exposição de informações analíticas da RAN (RAI) | Produtor e consumidor próprios, seguindo o Y1AP |
 | **R1** | rApps ↔ plataforma Non-RT RIC | Acesso do rApp aos serviços de A1, dados e O1 | Plataforma da O-RAN SC |
@@ -42,8 +42,8 @@ Na Etapa 8, o FlexRIC e a terminação A1-P própria dão lugar ao Near-RT RIC d
 | VM | Conteúdo | Etapas |
 | --- | --- | --- |
 | `ran` | OAI CN5G, gNB, nrUEs, Near-RT RIC (FlexRIC ou O-RAN SC), xApps, produtor Y1, terminação A1-P, O1 Adapter | 1 a 8 |
-| `obs` | Consumidor Y1, OpenTelemetry Collector, Prometheus, Grafana, portal | 3 a 8 |
-| `smo` | SMO, Non-RT RIC, rApp | 6 a 8 |
+| `obs` | Consumidor Y1, OpenTelemetry Collector, Prometheus, Grafana, portal | 4 a 8 |
+| `smo` | SMO, Non-RT RIC, rApp | 3 a 8 |
 
 ## Decisões de projeto
 
