@@ -588,7 +588,7 @@ A saída tem uma linha por slice por relatório, por exemplo:
 slice 1.000001  UEs 1 (novos 0)  prb_dl_pct 22.0  prb_ul_pct 1.0  thp_dl_kbps 39100.0  thp_ul_kbps 120.0
 ```
 
-O JSON Lines (`--json`) tem os mesmos campos, mais o início da coleta em `ts_us`. É o formato que o coletor OpenTelemetry da Etapa 3 vai ler. A xApp acrescenta ao fim do arquivo: apague-o antes de cada teste (`rm -f /tmp/skm.jsonl`), ou as médias misturam rodadas. Um slice sem UE não gera linha, porque o agente E2 não envia indicação vazia.
+O JSON Lines (`--json`) tem os mesmos campos, mais o início da coleta em `ts_us`. É o formato que o produtor Y1 da Etapa 4 vai ler. A xApp acrescenta ao fim do arquivo: apague-o antes de cada teste (`rm -f /tmp/skm.jsonl`), ou as médias misturam rodadas. Um slice sem UE não gera linha, porque o agente E2 não envia indicação vazia.
 
 ### Critérios de aceite
 

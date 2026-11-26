@@ -24,6 +24,10 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 18. [Preferência por E2SM-RC no controle de slice](#18-preferência-por-e2sm-rc-no-controle-de-slice)
 19. [Observações do E2 na Etapa 1](#19-observações-do-e2-na-etapa-1)
 20. [Escalonador de slices num fork próprio do OAI](#20-escalonador-de-slices-num-fork-próprio-do-oai)
+21. [xApp de monitoração KPM por slice](#21-xapp-de-monitoração-kpm-por-slice)
+22. [Correção do RIC do FlexRIC](#22-correção-do-ric-do-flexric)
+23. [Fork do OAI como padrão](#23-fork-do-oai-como-padrão)
+24. [Caminho O-RAN antes da exposição de dados](#24-caminho-o-ran-antes-da-exposição-de-dados)
 
 ## 1. Repositório oficial do OAI
 
@@ -131,7 +135,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 - **Contexto:** nenhum Near-RT RIC open source implementa a interface Y1.
 - **Decisão:** escrever o produtor e o consumidor Y1, seguindo o Y1AP.
 - **Motivo:** o Y1 é a saída de dados da RAN para o consumidor do slice, peça central do objetivo do projeto.
-- **Consequências:** cada desvio da especificação fica documentado. Veja [architecture.md](architecture.md) e a Etapa 3 do [roadmap](roadmap.md).
+- **Consequências:** cada desvio da especificação fica documentado. Veja [architecture.md](architecture.md) e a Etapa 4 do [roadmap](roadmap.md).
 
 ## 16. Componentes prontos da O-RAN SC e terminação A1-P própria
 
@@ -139,7 +143,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 - **Decisão:**
   - O1: O1 Adapter do OAI (servidor NETCONF no gNB) e OAM da O-RAN SC (SDN-R/OpenDaylight e VES Collector). Nada de adaptador O1 próprio.
   - A1, lado Non-RT: A1 Policy Management Service e A1 Simulator da O-RAN SC.
-  - A1, lado Near-RT: na Etapa 6, uma **terminação A1-P** própria (não um "adaptador") seguindo a OpenAPI do A1AP, testada contra o A1 Simulator e o A1 PMS.
+  - A1, lado Near-RT: na Etapa 3, uma **terminação A1-P** própria (não um "adaptador") seguindo a OpenAPI do A1AP, testada contra o A1 Simulator e o A1 PMS.
 - **Motivo:** menos código próprio e conformidade verificável: o A1 PMS da O-RAN SC opera a terminação como operaria qualquer Near-RT RIC.
 - **Consequências:** tabela "Componentes prontos e componentes próprios" no [roadmap](roadmap.md) e "Decisões de projeto" em [architecture.md](architecture.md).
 
@@ -199,7 +203,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 - **Decisão:**
   - **Correção no fork.** O estado das medidas por UE passa a ser guardado por assinatura e por UE, num arquivo novo do agente E2 (`ran_func_kpm_state.{h,c}`), na branch `kpm-per-slice` do fork, sob a CSSL v1.0.
   - **xApp própria no openran-lab.** A `slice_kpm_monitor` fica em `xapps/slice_kpm_monitor/`, em C, sob a Apache-2.0, distribuída só como código-fonte. O núcleo (`skm_core`) não depende de RIC e tem testes; o adaptador FlexRIC é o único arquivo ligado à API do FlexRIC, seguindo a separação da decisão 20.
-  - **Saída em JSON Lines**, uma linha por slice por relatório, para a Etapa 3 ler sem depender do formato de texto.
+  - **Saída em JSON Lines**, uma linha por slice por relatório, para o produtor Y1 (Etapa 4) ler sem depender do formato de texto.
 - **Motivo:** o KPM por slice é a base da xApp de slicing e do dashboard. Corrigir o agente no fork mantém a xApp simples e vale para qualquer xApp com mais de uma assinatura, inclusive as do FlexRIC. Com a xApp fora do FlexRIC, ela fica versionada com o laboratório e portável.
 - **Consequências:**
   - o FlexRIC também está sob a CSSL v1.0. A xApp é código próprio sob a Apache-2.0, e quem compila a liga localmente ao FlexRIC. A compatibilidade para distribuir binários prontos não foi analisada; por isso, o openran-lab distribui só o código-fonte;
@@ -227,3 +231,24 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 - **Consequências:**
   - um `vagrant provision` numa VM da Etapa 1 recompila o gNB e o FlexRIC;
   - voltar ao OAI upstream é pôr a chave em `false`: o gNB fica sem o escalonador por slice, sem o KPM por assinatura e sem a correção do RIC (a xApp continua compilando, mas o K4 falha).
+
+## 24. Caminho O-RAN antes da exposição de dados
+
+**Data:** 2026-11-26.
+
+- **Contexto:** o roadmap previa, depois da Etapa 2, o Y1 (Etapa 3), a observabilidade (4) e o botão com o atalho (5), e só então o caminho O-RAN com SMO, Non-RT RIC, rApp, A1 e O1 (6). O mantenedor quer validar primeiro o cenário O-RAN completo, base do que o repositório vai sustentar.
+- **Decisão:** o caminho O-RAN passa a ser a Etapa 3, logo depois da Etapa 2, e as etapas são renumeradas:
+
+  | Etapa nova | Entrega | Etapa antiga |
+  | --- | --- | --- |
+  | 3 | Caminho O-RAN com FlexRIC | 6 |
+  | 4 | Interface Y1 | 3 |
+  | 5 | Observabilidade | 4 |
+  | 6 | Botão de ação e atalho | 5 |
+
+  As Etapas 1, 2, 7 e 8 não mudam, e cada release continua sendo `v0.N.0` para a Etapa N. Na Etapa 3, a entrada do laço é a API de intenção do rApp de SLA, chamada por linha de comando, e o efeito é verificado pela `slice_kpm_monitor` e pelo `iperf3`. Na Etapa 6, o botão do portal chama a mesma API, e o atalho entra para a comparação do artigo 1.
+- **Motivo:** o laço intenção → rApp → A1 → xApp → E2 → gNB é o núcleo dos dois artigos e concentra os maiores riscos técnicos (terminação A1-P própria, SMO pesado, O1 do gNB, recursos do servidor com as VMs `ran` e `smo`). Y1, observabilidade e portal são camadas por cima do laço: expõem e acionam, mas não mudam o laço. Validá-lo antes evita refazer essas integrações.
+- **Consequências:**
+  - as referências às etapas em `roadmap.md`, `architecture.md`, no README e nas decisões 15, 16 e 21 seguem a numeração nova;
+  - o rApp de SLA ganha uma API de intenção própria desde a Etapa 3, e o botão da Etapa 6 só a chama;
+  - a xApp de slicing da Etapa 3 reaproveita o controle por E2SM-RC da Etapa 2, recebendo as cotas por A1 em vez da linha de comando.
