@@ -122,7 +122,8 @@ openran-lab/
 │   ├── multi-ue-ns.sh       # namespaces dos nrUE (Etapa 2)
 │   └── slice-prb-share.sh   # resumo das linhas [SLICE] do gNB (Etapa 2)
 ├── xapps/
-│   └── slice_kpm_monitor/   # xApp de KPM por slice (Etapa 2)
+│   ├── slice_kpm_monitor/   # xApp de KPM por slice (Etapa 2)
+│   └── slice_quota_ctrl/    # xApp que muda as cotas por E2SM-RC (Etapa 2)
 └── docs/
     ├── architecture.md
     ├── decisions.md         # registro das decisões técnicas

@@ -8,6 +8,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Adicionado
 
+- xApp `slice_quota_ctrl` (`xapps/slice_quota_ctrl/`, Apache-2.0): muda as cotas de PRB por slice com o CONTROL estilo 2 do E2SM-RC, ação 6 "Slice-level PRB quota". Núcleo sem RIC, com testes, e adaptador FlexRIC; `--check` mostra o anúncio do gNB. Guia da Etapa 2 com o handler, a compilação manual e os critérios C1 a C5; decisão 25.
+- Fork do OAI, branch `rc-slice-ctrl` (commit `c6e76b9f`): o gNB anuncia e trata o CONTROL estilo 2, ação 6, aplicando as cotas com `nr_slice_policy_set()`. A conversão da mensagem tem testes GTest, sem depender do MAC.
 - Role `xapps`: copia para a VM, compila contra o FlexRIC do submódulo, testa (`ctest`) e põe no `PATH` as xApps de `xapps/`, começando pela `slice_kpm_monitor`. Recompila quando o código da xApp ou o commit do FlexRIC mudam.
 - Correção de uma linha no Near-RT RIC do FlexRIC (`eq_xapp_ric_gen_id`), validada à mão: sem ela, o cancelamento das assinaturas de uma xApp apagava as de outra. Guia da Etapa 2 com o passo manual e os resultados dos testes K1 a K4 da `slice_kpm_monitor`; decisão 22; caso novo no troubleshooting. Critérios K2 (mesmo intervalo) e K3 (sem saturação) revistos; K1 a K4 passaram, com o K2b e o K3b.
 - xApp `slice_kpm_monitor` (`xapps/slice_kpm_monitor/`, Apache-2.0): assina o REPORT estilo 4 do E2SM-KPM uma vez por slice, com a S-NSSAI de 4 octetos, e escreve por slice, a cada segundo, `RRU.PrbTotDl/Ul` e `DRB.UEThpDl/Ul` em texto e JSON Lines. Núcleo sem dependência de RIC, com testes, e adaptador FlexRIC separado. Liga a `libe42_xapp_shared` do FlexRIC com a `libasn1_nr_rrc`, que traz o runtime ASN.1 que falta nela. Guia da Etapa 2 com compilação manual e critérios K1 a K4; decisão 21.
@@ -35,6 +37,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Decisão 20 reescrita como decisão tomada (2026-11-19): escalonador por slice num fork próprio do OAI sob a CSSL v1.0, cotas no modelo `RRMPolicyRatio`, prova de conceito com cotas fixas no `.conf` do gNB e sem E2, API interna pronta para o E2SM-RC estilo 2, FlexRIC como Near-RT RIC principal e xApp de slicing com a lógica separada da API do FlexRIC.
 - README: Etapa 2 em andamento. Roadmap: risco do controle de slice atualizado com o resultado da investigação. Decisão 18 aponta para a decisão 20.
 - Contexto para agentes de IA reorganizado: as decisões técnicas saem do `CLAUDE.md` para o novo `docs/decisions.md` (contexto, decisão, motivo e consequências de cada uma); convenções, fluxo de trabalho e verificações vão para o novo `AGENTS.md`, neutro de ferramenta; o `CLAUDE.md` só importa o `AGENTS.md`; o contexto pessoal do mantenedor vai para um `CLAUDE.local.md` fora do Git (`.gitignore`). README e CONTRIBUTING.md apontam para os novos arquivos.
+
+### Corrigido
+
+- Guia da Etapa 2: dois parágrafos tinham o texto inteiro da decisão 23 no lugar do link para ela.
 
 ## [0.1.0] - 2026-11-17
 

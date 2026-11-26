@@ -28,6 +28,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 22. [Correção do RIC do FlexRIC](#22-correção-do-ric-do-flexric)
 23. [Fork do OAI como padrão](#23-fork-do-oai-como-padrão)
 24. [Caminho O-RAN antes da exposição de dados](#24-caminho-o-ran-antes-da-exposição-de-dados)
+25. [Controle de cotas pelo E2SM-RC estilo 2](#25-controle-de-cotas-pelo-e2sm-rc-estilo-2)
 
 ## 1. Repositório oficial do OAI
 
@@ -252,3 +253,19 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
   - as referências às etapas em `roadmap.md`, `architecture.md`, no README e nas decisões 15, 16 e 21 seguem a numeração nova;
   - o rApp de SLA ganha uma API de intenção própria desde a Etapa 3, e o botão da Etapa 6 só a chama;
   - a xApp de slicing da Etapa 3 reaproveita o controle por E2SM-RC da Etapa 2, recebendo as cotas por A1 em vez da linha de comando.
+
+## 25. Controle de cotas pelo E2SM-RC estilo 2
+
+**Data:** 2026-11-26.
+
+- **Contexto:** a decisão 20 previu um handler do E2SM-RC (CONTROL estilo 2, ação 6 "Slice-level PRB quota") sobre a API de cotas do escalonador por slice. Nem a tag `2026.w46` nem o `develop` do OAI (w47) têm esse estilo. O agente E2 do FlexRIC responde `CONTROL ACKNOWLEDGE` a todo CONTROL, sem caminho para `CONTROL FAILURE`.
+- **Decisão:**
+  - **Fork:** branch `rc-slice-ctrl` (a partir de `kpm-per-slice`). O gNB anuncia o estilo 2 só com a ação 6 e a árvore de parâmetros de 8.4.3.6, e só em nós com MAC. A conversão da mensagem fica num arquivo próprio (`ran_func_rc_slice.{h,c}`), sem depender do MAC, com testes GTest.
+  - **Semântica:** a mensagem atualiza só os S-NSSAI que traz; os outros slices mantêm as cotas. Uma lista vazia remove todas. O PLMN precisa ser de uma célula do gNB. O resultado passa pela validação do escalonador; uma mensagem inválida não muda nada e o motivo vai para o log (`[SLICE] E2SM-RC: ... recusada`).
+  - **Resposta:** fica o `CONTROL ACKNOWLEDGE` do FlexRIC; a xApp confirma o efeito pelo log ou pelo KPM. Mudar o agente para responder `CONTROL FAILURE` exigiria mexer no FlexRIC e fica fora.
+  - **xApp `slice_quota_ctrl`** em `xapps/slice_quota_ctrl/` (Apache-2.0): núcleo sem RIC, com testes, e adaptador FlexRIC, como a `slice_kpm_monitor`. É uma ferramenta de linha de comando; a xApp de slicing controlada por A1, da Etapa 3, reaproveita o núcleo e a montagem da mensagem.
+- **Motivo:** atualizar só os slices da mensagem deixa uma xApp mexer num slice sem conhecer as cotas dos outros. A conversão separada do MAC pode ser testada sem o gNB. Manter o ACK do FlexRIC evita mais um fork.
+- **Consequências:**
+  - a xApp não sabe, pela resposta, se o gNB aplicou as cotas; os critérios C1 a C5 do [guia da Etapa 2](stages/02-multi-slice.md#controle-de-cotas-pelo-e2sm-rc) conferem pelo log e pelo KPM;
+  - até passar nesses critérios, o gNB do handler e a xApp são compilados à mão; depois, `oai_fork_commit` passa para a branch `rc-slice-ctrl` e a xApp entra em `xapps_list`;
+  - os IDs dos parâmetros 1 a 12 seguem as implementações de referência e precisam ser conferidos com o texto do E2SM-RC v1.03.
