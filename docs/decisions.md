@@ -301,11 +301,11 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
   - uma rede privada do libvirt, `openran-lab`, **isolada** (sem NAT e sem DHCP), criada pelo Vagrant com `private_network`;
   - sub-rede padrão `192.168.150.0/24`; o host fica com o `.1`, e as VMs com IPs fixos (`ran` `.10`, `smo` `.20`, `obs` `.30`);
   - a sub-rede e os IPs ficam no `config.yml` (decisão 7); o `Vagrantfile` recusa um IP fora da sub-rede, repetido ou igual ao do host;
-  - o Vagrant configura a `eth1` com o IP fixo (`/etc/netplan/50-vagrant.yaml`), e a role `common` passa a manter esse arquivo;
+  - o Vagrant só cria a interface (`eth1`, com `auto_config: false`); a role `common` configura o IP fixo no mesmo netplan da gerência (`/etc/netplan/01-openran-lab.yaml`);
   - a role `common` registra todas as VMs no `/etc/hosts` como `openran-<vm>`, inclusive as desligadas, para que ligar uma VM nova não mude as outras;
   - a VM `smo` começa com 2 vCPUs e 6 GB, o bastante para o A1 PMS, o A1 Simulator e o rApp; o OAM do passo 3.6 vai exigir revisão.
-- **Motivo:** uma rede isolada separa o tráfego das interfaces O-RAN do acesso de gerenciamento e não expõe nada fora do servidor. IPs fixos no `config.yml` deixam cada servidor escolher uma sub-rede livre sem mudar o código. Deixar a `eth1` com o Vagrant evita que o netplan da role `common` e o do Vagrant briguem a cada `vagrant reload`.
+- **Motivo:** uma rede isolada separa o tráfego das interfaces O-RAN do acesso de gerenciamento e não expõe nada fora do servidor. IPs fixos no `config.yml` deixam cada servidor escolher uma sub-rede livre sem mudar o código. O vagrant-libvirt só cria e configura as interfaces quando cria a VM: no servidor de teste, o `vagrant reload` da `ran` já existente não acrescentou a `eth1`, e, com ela ligada à mão, também não configurou o IP. Com a role `common` dona do netplan, uma VM antiga se ajusta com um `vagrant provision`, e não há dois arquivos de netplan disputando a mesma interface.
 - **Consequências:**
-  - a VM `ran` já criada só ganha a `eth1` com um `vagrant reload ran`, que reinicia a VM;
+  - uma VM criada antes desta mudança não ganha a `eth1` pelo Vagrant: ela é ligada com `virsh attach-interface` e configurada pelo `vagrant provision` (veja o guia da Etapa 3);
   - os contêineres não leem o `/etc/hosts` da VM: as roles que configurarem serviços em Docker (o A1 PMS, por exemplo) usam os IPs de `lab_hosts`, que o `Vagrantfile` repassa ao Ansible;
   - um `config.yml` antigo, sem `lab_network` e sem `ip` nas VMs, faz o `Vagrantfile` parar com uma mensagem dizendo o que falta.

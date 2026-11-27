@@ -42,20 +42,14 @@
   loop: "{{ common_netplan_files.files }}"
   loop_control:
     label: "{{ item.path }}"
-  when: item.path | basename not in common_netplan_keep
+  when: item.path != '/etc/netplan/01-openran-lab.yaml'
   notify: Apply netplan
 
-- name: Configurar a interface de gerenciamento só com DHCP
-  ansible.builtin.copy:
+- name: Configurar a gerência com DHCP e a rede privada com o IP fixo
+  ansible.builtin.template:
+    src: 01-openran-lab.yaml.j2
     dest: /etc/netplan/01-openran-lab.yaml
     mode: "0600"
-    content: |
-      # Gerenciado pelo openran-lab (role common)
-      network:
-        version: 2
-        ethernets:
-          {{ common_mgmt_interface }}:
-            dhcp4: true
   notify: Apply netplan
 
 - name: Registrar os IPs fixos das VMs no /etc/hosts

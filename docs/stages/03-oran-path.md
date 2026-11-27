@@ -221,9 +221,14 @@ No servidor, no diretório do repositório:
    ```
 
 2. Confira o host: `./scripts/preflight.sh`. A rede `openran-lab` deve aparecer como "será criada pelo Vagrant".
-3. Dê à VM `ran` a interface nova, o que a reinicia: `vagrant reload ran`.
-4. Crie a `smo`: `vagrant up smo`.
-5. Reprovisione a `ran` duas vezes com `vagrant provision ran`. A primeira registra os nomes no `/etc/hosts`; a segunda deve terminar com `changed=0`.
+3. Crie a `smo`: `vagrant up smo`. Uma VM criada a partir daqui já nasce com a `eth1`.
+4. Se a VM `ran` foi criada antes desta mudança, ligue nela a interface nova. O vagrant-libvirt só cria interfaces ao criar a VM, e um `vagrant reload` não resolve. A interface entra com a VM no ar, sem reiniciá-la:
+
+   ```bash
+   virsh attach-interface --domain openran-ran --type network --source openran-lab --model virtio --config --live
+   ```
+
+5. Reprovisione a `ran` duas vezes com `vagrant provision ran`. A primeira configura o IP da `eth1` e registra os nomes no `/etc/hosts`; a segunda deve terminar com `changed=0`.
 
 ### Critérios
 

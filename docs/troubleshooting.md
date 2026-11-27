@@ -18,6 +18,7 @@ Problemas encontrados durante a montagem do laboratório e como resolvê-los.
 | --- | --- | --- |
 | VM sem DNS; `resolvectl query` mostra `DNSSEC validation failed: missing-key` | As boxes `generic/*` vêm com DNS públicos fixos e DNSSEC ligado | Já tratado pela role `common`. Para corrigir à mão: DNS = gateway da rede de gerenciamento, `DNSSEC=no`, `DNSOverTLS=no` |
 | `Cannot call Open vSwitch: ovsdb-server.service is not running` no provisionamento | Aviso do `netplan apply` | Ignorar |
+| `Device "eth1" does not exist` numa VM criada antes da rede privada; `vagrant reload` não resolve | O vagrant-libvirt só cria as interfaces ao criar a VM | `virsh attach-interface --domain openran-<vm> --type network --source openran-lab --model virtio --config --live` e `vagrant provision <vm>`, que configura o IP fixo (veja o passo 3.1 da Etapa 3) |
 | Pouco espaço em `/` dentro da VM | O LVM da box não usa o disco inteiro | Já tratado pela role `common` (`lvextend -r -l +100%FREE`) |
 | OAI lento ou sem otimizações de CPU | VM sem AVX2 | Confirmar `cpu_mode = "host-passthrough"` e `grep avx2 /proc/cpuinfo` na VM |
 | `vagrant provision` para em "Conferir se o clone está no commit fixo", com o clone num commit diferente de `oai_commit` | `oai_commit` com o hash do objeto de uma tag anotada, e não do commit da tag | Obter o commit com `git ls-remote <url> 'refs/tags/<tag>^{}'` ou, num clone, `git rev-parse '<tag>^{commit}'`, e corrigir `oai_commit` em `ansible/group_vars/all.yml`. O `refs/tags/<tag>` de uma tag anotada não serve |

@@ -67,10 +67,11 @@ Vagrant.configure("2") do |config|
     config.vm.define vm_name do |node|
       node.vm.hostname = vm_name
 
-      # O Vagrant configura a interface (eth1) com o IP fixo e cria a rede
-      # no libvirt se ela ainda não existir
+      # O Vagrant cria a interface (eth1) e, se preciso, a rede no libvirt.
+      # O IP fixo é configurado pela role common (auto_config: false)
       node.vm.network :private_network,
                       ip: vm_settings.fetch("ip"),
+                      auto_config: false,
                       libvirt__network_name: lab_network.fetch("name"),
                       libvirt__netmask: lab_netmask,
                       libvirt__host_ip: lab_host_ip,
@@ -88,7 +89,11 @@ Vagrant.configure("2") do |config|
         ansible.playbook = "ansible/site.yml"
         ansible.config_file = "ansible/ansible.cfg"
         ansible.groups = { vm_name => [vm_name] }
-        ansible.extra_vars = { common_dns_server: dns_server, lab_hosts: lab_hosts }
+        ansible.extra_vars = {
+          common_dns_server: dns_server,
+          common_lab_address: "#{vm_settings.fetch('ip')}/#{lab_prefix}",
+          lab_hosts: lab_hosts
+        }
       end
     end
   end

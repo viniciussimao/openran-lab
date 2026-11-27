@@ -9,11 +9,10 @@ common_dns_probe_host: github.com
 # Interface de rede de gerenciamento da VM
 common_mgmt_interface: eth0
 
-# Arquivos do netplan mantidos. O 50-vagrant.yaml é escrito pelo Vagrant
-# a cada "vagrant up" ou "reload" e configura a rede privada (eth1)
-common_netplan_keep:
-  - 01-openran-lab.yaml
-  - 50-vagrant.yaml
+# Interface da rede privada entre as VMs e o IP fixo dela (CIDR). O
+# Vagrantfile passa o IP via extra_vars; vazio, a interface fica de fora
+common_lab_interface: eth1
+common_lab_address: ""
 
 # Prefixo dos nomes das VMs no /etc/hosts (openran-ran, openran-smo...),
 # o mesmo dos nomes das VMs no libvirt
