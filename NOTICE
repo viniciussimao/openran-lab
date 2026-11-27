@@ -9,12 +9,17 @@ ele baixa os seguintes projetos, que seguem as próprias licenças:
   - OAI CN5G
   - FlexRIC
 
-Na Etapa 2, o gNB pode ser compilado a partir de um fork do OpenAirInterface
-RAN com um escalonador por slice próprio:
-  https://github.com/viniciussimao/openairinterface5g (branch slice-scheduler)
+Desde a Etapa 2, o gNB e o nrUE são compilados a partir de um fork do
+OpenAirInterface RAN, com o escalonador por slice, o estado KPM por
+assinatura e o controle de cotas pelo E2SM-RC:
+  https://github.com/viniciussimao/openairinterface5g (branch rc-slice-ctrl)
 O openran-lab só referencia esse fork por URL e commit (oai_fork_commit em
-ansible/group_vars/all.yml). O código do fork,
-inclusive o escalonador, segue a licença do OpenAirInterface, a Collaborative
-Standards Software License v1.0 (CSSL, SPDX LicenseRef-CSSL-1.0):
-https://openairinterface.org/oai-cssl/. A CSSL dá licença de patentes gratuita
-para estudo, teste e pesquisa, e licença FRAND para outros usos.
+ansible/group_vars/all.yml). O código do fork segue a licença do
+OpenAirInterface, a Collaborative Standards Software License v1.0 (CSSL,
+SPDX LicenseRef-CSSL-1.0): https://openairinterface.org/oai-cssl/. A CSSL dá
+licença de patentes gratuita para estudo, teste e pesquisa, e licença FRAND
+para outros usos. O FlexRIC, submódulo do fork, também segue a CSSL.
+
+As xApps em xapps/ são código próprio, sob a Apache License 2.0, e são
+distribuídas só como código-fonte: quem as compila as liga localmente ao
+FlexRIC.

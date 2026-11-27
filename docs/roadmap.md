@@ -78,7 +78,7 @@ Para a comparação ser limpa, as métricas, os nomes das séries no Prometheus 
 
 | Risco ou decisão | Impacto | Como tratar |
 | --- | --- | --- |
-| Controle de slice no OAI `2026.w46` (SLICE SM do FlexRIC, E2SM-RC ou E2SM-CCC) | Define a xApp das Etapas 3 e 6, e o quanto dela é portável para a Etapa 8 | A [investigação](stages/02-multi-slice.md#investigação-controle-de-slice) mostrou que nenhum dos três chega ao escalonador MAC, que não tem escalonamento por slice. Decidido: escalonador por slice num fork próprio do OAI, primeiro com cotas fixas no `.conf` do gNB e depois com E2SM-RC estilo 2 (decisão 20) |
+| Controle de slice no OAI `2026.w46` (SLICE SM do FlexRIC, E2SM-RC ou E2SM-CCC) | Define a xApp das Etapas 3 e 6, e o quanto dela é portável para a Etapa 8 | A [investigação](stages/02-multi-slice-investigation.md) mostrou que nenhum dos três chega ao escalonador MAC, que não tem escalonamento por slice. Decidido: escalonador por slice num fork próprio do OAI, primeiro com cotas fixas no `.conf` do gNB e depois com E2SM-RC estilo 2 (decisão 20) |
 | FlexRIC não termina A1 | A Etapa 3 exige uma peça própria | Terminação A1-P seguindo a OpenAPI do A1AP, testada contra o A1 Simulator e o A1 PMS da O-RAN SC |
 | Near-RT RIC da O-RAN SC roda em Kubernetes | Instalação pesada; não cabe junto com as outras VMs no servidor de teste | Rodar um Near-RT RIC de cada vez na Etapa 8 |
 | Recursos do host | `ran` + `obs` + `smo` podem passar da capacidade do servidor | Habilitar só as VMs da etapa em uso (`config.yml`) |

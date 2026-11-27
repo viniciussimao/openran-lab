@@ -13,7 +13,7 @@ Obrigado pelo interesse em contribuir com o openran-lab. Este guia resume as con
 ## Fluxo de trabalho
 
 1. Abra uma issue descrevendo o problema ou a proposta.
-2. Crie um branch a partir do `main`: `feat/<assunto>`, `fix/<assunto>` ou `docs/<assunto>`.
+2. Crie um branch a partir do `main`: `feat/<assunto>`, `fix/<assunto>` ou `docs/<assunto>` (e `release/vX.Y.Z` para fechar uma etapa).
 3. Faça commits pequenos no padrão [Conventional Commits](https://www.conventionalcommits.org/pt-br/v1.0.0/):
    - `feat: add flexric role`
    - `fix: wait for dns before apt`
@@ -56,4 +56,4 @@ ruby -c Vagrantfile
 
 ## Releases
 
-Cada etapa concluída gera uma release (`v0.1.0` = Etapa 1, e assim por diante). A entrada correspondente no `CHANGELOG.md` lista as versões testadas.
+Cada etapa concluída gera uma release (`v0.1.0` = Etapa 1, e assim por diante). A entrada correspondente no `CHANGELOG.md` resume a etapa, as versões testadas e o resultado do critério de aceite. A release é preparada num branch `release/vX.Y.Z` e, depois do merge, ganha uma tag anotada e uma release no GitHub.
