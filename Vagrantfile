@@ -24,6 +24,28 @@ management_network = settings.fetch("management_network")
 # usado como DNS das VMs (veja a role common)
 dns_server = IPAddr.new(management_network.fetch("address")).succ.to_s
 
+# Rede privada entre as VMs: isolada, sem DHCP, com o IP fixo de cada VM.
+# O primeiro endereço fica com o host.
+lab_network = settings.fetch("lab_network") { abort "config: falta lab_network (veja o config.example.yml)" }
+lab_subnet = IPAddr.new(lab_network.fetch("address"))
+lab_prefix = lab_subnet.prefix
+lab_netmask = IPAddr.new("255.255.255.255").mask(lab_prefix).to_s
+lab_host_ip = lab_subnet.succ.to_s
+
+# IPs de todas as VMs, habilitadas ou não, para o /etc/hosts (role common).
+# Assim, habilitar uma VM nova não muda as que já existem.
+lab_hosts = {}
+settings.fetch("vms").each do |vm_name, vm_settings|
+  ip = vm_settings.fetch("ip") { abort "config: falta o ip da VM #{vm_name} (veja o config.example.yml)" }
+  unless lab_subnet.include?(IPAddr.new(ip)) && ip != lab_subnet.to_s && ip != lab_host_ip
+    abort "config: o IP #{ip} da VM #{vm_name} precisa estar em #{lab_network.fetch('address')}, " \
+          "sem ser o endereço da rede nem o do host (#{lab_host_ip})"
+  end
+  abort "config: o IP #{ip} está repetido em vms" if lab_hosts.value?(ip)
+
+  lab_hosts[vm_name] = ip
+end
+
 Vagrant.configure("2") do |config|
   config.vm.box = settings.fetch("box")
   config.vm.boot_timeout = 600
@@ -45,6 +67,17 @@ Vagrant.configure("2") do |config|
     config.vm.define vm_name do |node|
       node.vm.hostname = vm_name
 
+      # O Vagrant cria a interface (eth1) e, se preciso, a rede no libvirt.
+      # O IP fixo é configurado pela role common (auto_config: false)
+      node.vm.network :private_network,
+                      ip: vm_settings.fetch("ip"),
+                      auto_config: false,
+                      libvirt__network_name: lab_network.fetch("name"),
+                      libvirt__netmask: lab_netmask,
+                      libvirt__host_ip: lab_host_ip,
+                      libvirt__dhcp_enabled: false,
+                      libvirt__forward_mode: "none"
+
       node.vm.provider :libvirt do |libvirt|
         libvirt.cpus = vm_settings.fetch("cpus")
         libvirt.memory = vm_settings.fetch("memory_mb")
@@ -56,7 +89,11 @@ Vagrant.configure("2") do |config|
         ansible.playbook = "ansible/site.yml"
         ansible.config_file = "ansible/ansible.cfg"
         ansible.groups = { vm_name => [vm_name] }
-        ansible.extra_vars = { common_dns_server: dns_server }
+        ansible.extra_vars = {
+          common_dns_server: dns_server,
+          common_lab_address: "#{vm_settings.fetch('ip')}/#{lab_prefix}",
+          lab_hosts: lab_hosts
+        }
       end
     end
   end

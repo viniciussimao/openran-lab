@@ -30,6 +30,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 24. [Caminho O-RAN antes da exposição de dados](#24-caminho-o-ran-antes-da-exposição-de-dados)
 25. [Controle de cotas pelo E2SM-RC estilo 2](#25-controle-de-cotas-pelo-e2sm-rc-estilo-2)
 26. [Desenho da Etapa 3: caminho O-RAN com FlexRIC](#26-desenho-da-etapa-3-caminho-o-ran-com-flexric)
+27. [Rede privada entre as VMs](#27-rede-privada-entre-as-vms)
 
 ## 1. Repositório oficial do OAI
 
@@ -290,3 +291,21 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
   - a A1TD deixa para estudo futuro como o Near-RT RIC usa as metas de vazão por slice; a interpretação do laboratório (malha fechada sobre cotas de PRB) fica documentada no guia;
   - o OAM pede 16 GB e não cabe junto com a VM `ran` como está; os testes do O1 vão exigir ajustar a memória das VMs;
   - a etapa segue o plano de seis passos do guia, cada um com critério próprio e com a regra "manual primeiro, automação depois".
+
+## 27. Rede privada entre as VMs
+
+**Data:** 2026-11-27.
+
+- **Contexto:** o A1, o O1 e o Y1 ligam VMs diferentes e precisam de endereços estáveis (a `baseUrl` do Near-RT RIC no A1 PMS, por exemplo). A rede de gerenciamento do vagrant-libvirt dá IPs por DHCP. No servidor de teste, as sub-redes `192.168.121.0/24` e `192.168.122.0/24` (libvirt), `172.17.0.0/16` e `172.18.0.0/16` (Docker), `10.252.8.0/24`, `10.56.246.0/24`, `10.96.3.0/24`, `192.168.193.0/24` e `192.168.195.0/24` já estão em uso; dentro da VM `ran`, o core usa `192.168.70.0/24`.
+- **Decisão:**
+  - uma rede privada do libvirt, `openran-lab`, **isolada** (sem NAT e sem DHCP), criada pelo Vagrant com `private_network`;
+  - sub-rede padrão `192.168.150.0/24`; o host fica com o `.1`, e as VMs com IPs fixos (`ran` `.10`, `smo` `.20`, `obs` `.30`);
+  - a sub-rede e os IPs ficam no `config.yml` (decisão 7); o `Vagrantfile` recusa um IP fora da sub-rede, repetido ou igual ao do host;
+  - o Vagrant só cria a interface (`eth1`, com `auto_config: false`); a role `common` configura o IP fixo no mesmo netplan da gerência (`/etc/netplan/01-openran-lab.yaml`);
+  - a role `common` registra todas as VMs no `/etc/hosts` como `openran-<vm>`, inclusive as desligadas, para que ligar uma VM nova não mude as outras;
+  - a VM `smo` começa com 2 vCPUs e 6 GB, o bastante para o A1 PMS, o A1 Simulator e o rApp; o OAM do passo 3.6 vai exigir revisão.
+- **Motivo:** uma rede isolada separa o tráfego das interfaces O-RAN do acesso de gerenciamento e não expõe nada fora do servidor. IPs fixos no `config.yml` deixam cada servidor escolher uma sub-rede livre sem mudar o código. O vagrant-libvirt só cria e configura as interfaces quando cria a VM: no servidor de teste, o `vagrant reload` da `ran` já existente não acrescentou a `eth1`, e, com ela ligada à mão, também não configurou o IP. Com a role `common` dona do netplan, uma VM antiga se ajusta com um `vagrant provision`, e não há dois arquivos de netplan disputando a mesma interface.
+- **Consequências:**
+  - uma VM criada antes desta mudança não ganha a `eth1` pelo Vagrant: ela é ligada com `virsh attach-interface` e configurada pelo `vagrant provision` (veja o guia da Etapa 3);
+  - os contêineres não leem o `/etc/hosts` da VM: as roles que configurarem serviços em Docker (o A1 PMS, por exemplo) usam os IPs de `lab_hosts`, que o `Vagrantfile` repassa ao Ansible;
+  - um `config.yml` antigo, sem `lab_network` e sem `ip` nas VMs, faz o `Vagrantfile` parar com uma mensagem dizendo o que falta.

@@ -9,6 +9,15 @@ common_dns_probe_host: github.com
 # Interface de rede de gerenciamento da VM
 common_mgmt_interface: eth0
 
+# Interface da rede privada entre as VMs e o IP fixo dela (CIDR). O
+# Vagrantfile passa o IP via extra_vars; vazio, a interface fica de fora
+common_lab_interface: eth1
+common_lab_address: ""
+
+# Prefixo dos nomes das VMs no /etc/hosts (openran-ran, openran-smo...),
+# o mesmo dos nomes das VMs no libvirt
+common_lab_host_prefix: openran-
+
 # Volume LVM da box Ubuntu, estendido para ocupar todo o disco
 common_lvm_vg: ubuntu-vg
 common_lvm_lv: ubuntu-lv

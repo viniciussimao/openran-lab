@@ -12,17 +12,27 @@ management_network:
   name: vagrant-libvirt
   address: 192.168.121.0/24
 
+# Rede privada entre as VMs (Etapa 3 em diante), isolada e sem DHCP.
+# Cada VM recebe o IP fixo definido em "vms". O primeiro endereço é o
+# do host. Troque a sub-rede se ela já estiver em uso no seu servidor.
+lab_network:
+  name: openran-lab
+  address: 192.168.150.0/24
+
 # VMs do laboratório. Habilite apenas as etapas que for usar.
 vms:
   ran:            # core 5G, gNB, UEs, Near-RT RIC e xApps (todas as etapas)
     enabled: true
     cpus: 8
     memory_mb: 16384
+    ip: 192.168.150.10
   obs:            # consumidor Y1, observabilidade e portal (Etapas 4 a 6)
     enabled: false
     cpus: 2
     memory_mb: 4096
+    ip: 192.168.150.30
   smo:            # SMO, Non-RT RIC e rApp (Etapa 3 em diante)
     enabled: false
-    cpus: 4
-    memory_mb: 8192
+    cpus: 2
+    memory_mb: 6144
+    ip: 192.168.150.20

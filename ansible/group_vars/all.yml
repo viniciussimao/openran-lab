@@ -11,6 +11,10 @@ lab_home: "/home/{{ lab_user }}"
 # E2 carregam como plugin todo arquivo de /usr/local/lib/flexric/.
 lab_state_dir: /var/lib/openran-lab
 
+# IPs fixos das VMs na rede privada (nome da VM -> IP). Vêm do config.yml:
+# o Vagrantfile repassa este valor via extra_vars.
+lab_hosts: {}
+
 # OAI RAN (projeto Duranta, repositório oficial no GitHub)
 oai_repo_url: https://github.com/duranta-project/openairinterface5g.git
 oai_version: "2026.w46"

@@ -16,7 +16,7 @@ Verde: pronto (Etapas 1 e 2). Azul: Etapa 3, em andamento. Cinza tracejado: plan
 | --- | --- | --- |
 | 1 | RAN + core + E2 (OAI gNB/nrUE em rfsim, OAI CN5G, FlexRIC) | Concluída (`v0.1.0`) |
 | 2 | Multi-slice (dois slices, dois UEs, xApp de slicing) | Concluída (`v0.2.0`, [guia](docs/stages/02-multi-slice.md)) |
-| 3 | Caminho O-RAN com FlexRIC (SMO, Non-RT RIC, rApp, terminação A1-P, O1) | Em andamento: desenho aprovado ([guia](docs/stages/03-oran-path.md)) |
+| 3 | Caminho O-RAN com FlexRIC (SMO, Non-RT RIC, rApp, terminação A1-P, O1) | Em andamento: passo 3.1 (rede e VM `smo`) concluído ([guia](docs/stages/03-oran-path.md)) |
 | 4 | Interface Y1 (produtor e consumidor com mTLS) | Planejada |
 | 5 | Observabilidade (OpenTelemetry, Prometheus, Grafana) | Planejada |
 | 6 | Botão de ação para o consumidor e atalho de laboratório | Planejada |
@@ -59,6 +59,7 @@ Antes de começar, o servidor precisa ter:
 - Linux x86_64 com virtualização por hardware (Intel VT-x ou AMD-V) habilitada na BIOS;
 - CPU com **AVX2**, que o OAI exige (AVX-512 é aproveitado se existir);
 - recursos livres para a VM `ran` (Etapas 1 e 2): **8 vCPUs, 16 GB de RAM e cerca de 100 GB de disco**. Com os dois UEs saturados, a CPU da VM chega a 93%;
+- a partir da Etapa 3, também para a VM `smo`: **2 vCPUs e 6 GB de RAM**;
 - **KVM/libvirt, Vagrant, o plugin vagrant-libvirt e Ansible** instalados;
 - o seu usuário nos grupos `libvirt` e `kvm`.
 
@@ -104,12 +105,19 @@ O `Vagrantfile` lê o `config.yml`. Se ele não existir, usa o `config.example.y
 | `management_network.address` | Sub-rede dessa rede, no formato CIDR |
 | `vms.<nome>.enabled` | Liga ou desliga a VM (`ran`, `obs`, `smo`) |
 | `vms.<nome>.cpus` / `memory_mb` | Recursos de cada VM |
+| `lab_network.name` / `address` | Nome e sub-rede (CIDR) da rede privada entre as VMs. O primeiro endereço fica com o host |
+| `vms.<nome>.ip` | IP fixo da VM na rede privada |
 
 ### Nomes das VMs e rede
 
 As VMs aparecem no libvirt com nomes fixos: `openran-ran`, `openran-obs` e `openran-smo`. Dentro do Vagrant, use só o nome curto (`vagrant ssh ran`).
 
-Se a sub-rede padrão da rede de gerenciamento (`192.168.121.0/24`) já estiver em uso no seu servidor, troque `management_network` no `config.yml`. O `scripts/preflight.sh` avisa quando isso acontece.
+Cada VM tem duas interfaces:
+
+- **`eth0`, rede de gerenciamento** do vagrant-libvirt, com DHCP e NAT: é por onde o Vagrant e o Ansible entram e por onde a VM acessa a internet;
+- **`eth1`, rede privada `openran-lab`**, isolada e com IP fixo (`ran` 192.168.150.10, `smo` .20 e `obs` .30 no modelo): é por onde as VMs se falam (A1, O1 e Y1). Cada VM conhece as outras pelo nome (`openran-ran`, `openran-smo`, `openran-obs`), registrado no `/etc/hosts` pela role `common`.
+
+Se a sub-rede padrão de uma das redes (`192.168.121.0/24` e `192.168.150.0/24`) já estiver em uso no seu servidor, troque `management_network` ou `lab_network` no `config.yml`. O `scripts/preflight.sh` avisa quando isso acontece.
 
 ## Versões fixas dos componentes
 

@@ -41,6 +41,10 @@ elif query == "network_name":
     print(cfg["management_network"]["name"])
 elif query == "network_address":
     print(cfg["management_network"]["address"])
+elif query == "lab_network_name":
+    print(cfg["lab_network"]["name"])
+elif query == "lab_network_address":
+    print(cfg["lab_network"]["address"])
 PY
 }
 
@@ -135,19 +139,25 @@ if command -v virsh >/dev/null 2>&1; then
 fi
 
 echo
-echo "Rede de gerenciamento"
-if python3 -c 'import yaml' 2>/dev/null && command -v virsh >/dev/null 2>&1; then
-  net_name="$(read_config network_name)"
-  net_address="$(read_config network_address)"
-  net_prefix="${net_address%.*}."
+echo "Redes"
+# Verifica uma rede do libvirt: reutilizada se já existe; falha se a
+# sub-rede estiver em uso por outra interface do host
+check_network() {
+  local net_name="$1" net_address="$2"
+  local net_prefix="${net_address%.*}."
 
   if virsh -c qemu:///system net-info "${net_name}" >/dev/null 2>&1; then
     ok "rede ${net_name} já existe e será reutilizada"
   elif ip -4 addr show | grep -q "inet ${net_prefix}"; then
-    fail "sub-rede ${net_address} já está em uso no host; escolha outra no config.yml"
+    fail "sub-rede ${net_address} da rede ${net_name} já está em uso no host; escolha outra no config.yml"
   else
     ok "rede ${net_name} (${net_address}) será criada pelo Vagrant"
   fi
+}
+
+if python3 -c 'import yaml' 2>/dev/null && command -v virsh >/dev/null 2>&1; then
+  check_network "$(read_config network_name)" "$(read_config network_address)"
+  check_network "$(read_config lab_network_name)" "$(read_config lab_network_address)"
 fi
 
 echo

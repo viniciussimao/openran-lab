@@ -1,0 +1,12 @@
+# Gerenciado pelo openran-lab (role common)
+network:
+  version: 2
+  ethernets:
+    {{ common_mgmt_interface }}:
+      dhcp4: true
+{% if common_lab_address | length > 0 %}
+    {{ common_lab_interface }}:
+      dhcp4: false
+      addresses:
+        - {{ common_lab_address }}
+{% endif %}
