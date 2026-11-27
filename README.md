@@ -4,14 +4,14 @@ Laboratório OpenRAN reproduzível para estudo e pesquisa: gNB e UE do OpenAirIn
 
 O objetivo final é um cenário em que o consumidor de um slice acompanha dados da RAN num dashboard (via interface **Y1**) e, com um botão, pede mais recursos. O pedido percorre o caminho O-RAN (SMO → rApp → **A1** → xApp → **E2**) até o gNB.
 
-> **Status:** em desenvolvimento. A Etapa 1 está concluída (release `v0.1.0`) e a Etapa 2 está em andamento. Veja o [roadmap](docs/roadmap.md).
+> **Status:** em desenvolvimento. As Etapas 1 e 2 estão concluídas (releases `v0.1.0` e `v0.2.0`); a próxima é a Etapa 3, o caminho O-RAN completo. Veja o [roadmap](docs/roadmap.md).
 
 ## Status das etapas
 
 | Etapa | Entrega | Status |
 | --- | --- | --- |
 | 1 | RAN + core + E2 (OAI gNB/nrUE em rfsim, OAI CN5G, FlexRIC) | Concluída (`v0.1.0`) |
-| 2 | Multi-slice (dois slices, dois UEs, xApp de slicing) | Em andamento: escalonador, KPM e controle de cotas por E2SM-RC prontos; falta fechar a release ([guia](docs/stages/02-multi-slice.md)) |
+| 2 | Multi-slice (dois slices, dois UEs, xApp de slicing) | Concluída (`v0.2.0`, [guia](docs/stages/02-multi-slice.md)) |
 | 3 | Caminho O-RAN com FlexRIC (SMO, Non-RT RIC, rApp, terminação A1-P, O1) | Planejada |
 | 4 | Interface Y1 (produtor e consumidor com mTLS) | Planejada |
 | 5 | Observabilidade (OpenTelemetry, Prometheus, Grafana) | Planejada |

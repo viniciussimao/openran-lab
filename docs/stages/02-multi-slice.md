@@ -1,6 +1,6 @@
 # Etapa 2: multi-slice
 
-**Status:** em andamento. A investigação do controle de slice está feita, só por leitura de código. O desenho do escalonador por slice está aprovado, e a linha de base com o OAI upstream (dois slices, dois UEs) aguarda o teste no servidor.
+**Status:** concluída (release `v0.2.0`, 2026-11-27). O provisionamento sobe os dois slices no core e no gNB, o gNB do fork (escalonador por slice, KPM por assinatura e controle pelo E2SM-RC) e as xApps [`slice_kpm_monitor`](#xapp-de-monitoração-kpm-por-slice) e [`slice_quota_ctrl`](#controle-de-cotas-pelo-e2sm-rc). O critério de aceite passou no C2: trocar as cotas de 30/70 para 70/30 levou o UE 1 de 38 para 75 Mbit/s e o UE 2 de 74 para 38 Mbit/s. As seções abaixo seguem a ordem em que o trabalho foi feito: investigação, desenho, linha de base, PoC do escalonador, KPM por slice e controle pela E2.
 
 **Objetivo:** dois slices (S-NSSAI) no core e no gNB, um UE em cada, e uma xApp que altera a partição de recursos entre eles.
 

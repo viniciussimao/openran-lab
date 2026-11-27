@@ -6,9 +6,13 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não publicado]
 
+## [0.2.0] - 2026-11-27
+
+Etapa 2 concluída: dois slices (`1.000001` e `1.000002`) no core e no gNB, um UE em cada; escalonador DL por slice com cotas no modelo `RRMPolicyRatio` num fork do OAI (branch `rc-slice-ctrl`, commit `000b2090`, a partir da tag `2026.w46`); KPM por slice e controle das cotas pela E2 (E2SM-RC CONTROL estilo 2, ação 6), com as xApps próprias `slice_kpm_monitor` e `slice_quota_ctrl`; FlexRIC no commit `ea6d9b4` do upstream. Critério de aceite: mudar a cota de um slice muda a vazão medida com o `iperf3` (C2: com as cotas de 30/70 trocadas para 70/30, o UE 1 foi de 38 para 75 Mbit/s e o UE 2, de 74 para 38 Mbit/s). Validado no servidor de teste com dois `vagrant provision` (o segundo com `changed=0`) e os critérios T0 a T6, K1 a K4 e C1 a C5 do guia da Etapa 2.
+
 ### Adicionado
 
-- xApp `slice_quota_ctrl` (`xapps/slice_quota_ctrl/`, Apache-2.0): muda as cotas de PRB por slice com o CONTROL estilo 2 do E2SM-RC, ação 6 "Slice-level PRB quota". Núcleo sem RIC, com testes, e adaptador FlexRIC; `--check` mostra o anúncio do gNB e `--remove` tira a cota de um slice. Guia da Etapa 2 com o handler, a compilação manual, os critérios C1 a C5 e os resultados de C1 a C3; decisão 25.
+- xApp `slice_quota_ctrl` (`xapps/slice_quota_ctrl/`, Apache-2.0): muda as cotas de PRB por slice com o CONTROL estilo 2 do E2SM-RC, ação 6 "Slice-level PRB quota". Núcleo sem RIC, com testes, e adaptador FlexRIC; `--check` mostra o anúncio do gNB e `--remove` tira a cota de um slice. Guia da Etapa 2 com o handler, os critérios C1 a C5 e os resultados; decisão 25.
 - Fork do OAI, branch `rc-slice-ctrl` (commit `000b2090`): o gNB anuncia e trata o CONTROL estilo 2, ação 6, aplicando as cotas com `nr_slice_policy_set()`; a cota neutra (`min 0, max 100, ded 0`) remove a cota do slice. A conversão da mensagem tem testes GTest, sem depender do MAC.
 - Role `xapps`: copia para a VM, compila contra o FlexRIC do submódulo, testa (`ctest`) e põe no `PATH` as xApps de `xapps/`, começando pela `slice_kpm_monitor`. Recompila quando o código da xApp ou o commit do FlexRIC mudam.
 - Correção de uma linha no Near-RT RIC do FlexRIC (`eq_xapp_ric_gen_id`), validada à mão: sem ela, o cancelamento das assinaturas de uma xApp apagava as de outra. Guia da Etapa 2 com o passo manual e os resultados dos testes K1 a K4 da `slice_kpm_monitor`; decisão 22; caso novo no troubleshooting. Critérios K2 (mesmo intervalo) e K3 (sem saturação) revistos; K1 a K4 passaram, com o K2b e o K3b.
@@ -84,5 +88,6 @@ Etapa 1 concluída: RAN + core 5G + E2 numa VM, com OAI `2026.w46` (commit `cb98
 - Role `flexric`: o registro de idempotência era gravado em `/usr/local/lib/flexric/`, de onde o nearRT-RIC e o agente E2 carregam todo arquivo como plugin; o nearRT-RIC abortava (`Not valid path for the SM plugins`). Os registros de `flexric` e `oai_ran` passam para `/var/lib/openran-lab/` (`lab_state_dir`, criado pela role `common`). Os registros antigos são aproveitados uma vez e apagados, para VMs já provisionadas se corrigirem sem recompilar. A role `flexric` agora falha se `/usr/local/lib/flexric/` tiver algo além de `.so`. O caso foi incluído em `docs/troubleshooting.md`.
 - `oai_commit` passa a ser `cb98db5b5d2d95c86673821bfc9fa1be9e225b97`, o commit da tag `2026.w46`. O valor anterior (`71a5b64c…`) era o hash do objeto da tag anotada, e a asserção da role `oai_ran` parou o provisionamento. README e CLAUDE.md corrigidos; o caso foi incluído em `docs/troubleshooting.md`.
 
-[Não publicado]: https://github.com/viniciussimao/openran-lab/compare/v0.1.0...HEAD
+[Não publicado]: https://github.com/viniciussimao/openran-lab/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/viniciussimao/openran-lab/releases/tag/v0.2.0
 [0.1.0]: https://github.com/viniciussimao/openran-lab/releases/tag/v0.1.0
