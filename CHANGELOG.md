@@ -12,6 +12,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Alterado
 
+- Figura da arquitetura (`docs/images/architecture.svg`) no README e em `docs/architecture.md`, no lugar do diagrama em texto: VMs `obs`, `smo` e `ran`, interfaces Y1, A1, O1, E2, N2/N3 e R1, e o status de cada componente por etapa.
 - Documentação revisada para quem chega ao projeto: o guia da Etapa 2 foi dividido em três arquivos (como executar e como funciona; testes e resultados; investigação), com um roteiro único e atualizado para subir o cenário e usar as xApps. O README ganhou o cenário atual, um guia de leitura, a tabela de testes e resultados e as versões do fork e do FlexRIC. Atualizados o NOTICE (branch `rc-slice-ctrl`), os comentários das VMs no `config.example.yml` (numeração nova das etapas), a decisão 3, a arquitetura, o guia da Etapa 1 (gNB do fork) e o CONTRIBUTING (branches `release/`). Novo `xapps/README.md`. Links internos conferidos.
 
 ## [0.2.0] - 2026-11-27

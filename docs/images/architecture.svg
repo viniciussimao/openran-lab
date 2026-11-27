@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 850" width="1200" height="850" font-family="Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">Arquitetura do openran-lab</title>
+  <desc id="desc">Três VMs: obs (portal, observabilidade e consumidor Y1), smo (rApp, A1 PMS e OAM) e ran (core 5G, gNB, UEs, Near-RT RIC FlexRIC, xApps, terminação A1-P, O1 Adapter e produtor Y1), ligadas pelas interfaces A1, O1, E2 e Y1. As cores mostram o status de cada componente por etapa.</desc>
+  <defs>
+    <marker id="a-done" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3c4043"/></marker>
+    <marker id="a-s3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1a73e8"/></marker>
+    <marker id="a-plan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#80868b"/></marker>
+    <style>
+      .vm { fill: #ffffff; stroke: #5f6368; stroke-width: 1.5; }
+      .done { fill: #e6f4ea; stroke: #1e8e3e; stroke-width: 1.5; }
+      .s3 { fill: #e8f0fe; stroke: #1a73e8; stroke-width: 1.5; }
+      .plan { fill: #f1f3f4; stroke: #80868b; stroke-width: 1.5; stroke-dasharray: 6 4; }
+      .group { fill: none; stroke: #9aa0a6; stroke-width: 1; }
+      .h { font-size: 16px; font-weight: 700; fill: #202124; }
+      .meta { font-size: 12px; fill: #5f6368; }
+      .t { font-size: 13px; font-weight: 600; fill: #202124; text-anchor: middle; }
+      .tm { font-size: 12px; font-weight: 600; fill: #202124; text-anchor: middle; font-family: Consolas, Menlo, monospace; }
+      .s { font-size: 12px; fill: #5f6368; text-anchor: middle; }
+      .if { font-size: 13px; font-weight: 700; fill: #202124; }
+      .ifs { font-size: 11px; fill: #5f6368; }
+      .l-done { stroke: #3c4043; stroke-width: 1.8; fill: none; marker-end: url(#a-done); }
+      .l-s3 { stroke: #1a73e8; stroke-width: 1.8; fill: none; marker-end: url(#a-s3); }
+      .l-plan { stroke: #80868b; stroke-width: 1.8; fill: none; stroke-dasharray: 6 4; marker-end: url(#a-plan); }
+      .both-done { marker-start: url(#a-done); }
+      .both-s3 { marker-start: url(#a-s3); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="850" rx="16" fill="#fafafa"/>
+
+  <text x="40" y="38" font-size="22" font-weight="700" fill="#202124">openran-lab: arquitetura final</text>
+  <text x="40" y="60" class="meta">Servidor Linux com KVM/libvirt. As VMs são criadas pelo Vagrant e provisionadas pelo Ansible.</text>
+
+  <!-- VM obs -->
+  <rect x="40" y="80" width="520" height="240" rx="14" class="vm"/>
+  <text x="58" y="106" class="h">VM obs</text>
+  <text x="542" y="106" class="meta" text-anchor="end">Etapas 4 a 6</text>
+
+  <rect x="70" y="122" width="460" height="56" rx="8" class="plan"/>
+  <text x="300" y="146" class="t">Portal do consumidor + botão</text>
+  <text x="300" y="166" class="s">Etapa 6</text>
+
+  <rect x="70" y="240" width="220" height="60" rx="8" class="plan"/>
+  <text x="180" y="265" class="t">Consumidor Y1</text>
+  <text x="180" y="285" class="s">Etapa 4</text>
+
+  <rect x="320" y="240" width="210" height="60" rx="8" class="plan"/>
+  <text x="425" y="265" class="t">OTel · Prometheus · Grafana</text>
+  <text x="425" y="285" class="s">Etapa 5</text>
+
+  <path d="M290,270 L318,270" class="l-plan"/>
+  <path d="M425,240 L425,180" class="l-plan"/>
+  <text x="433" y="214" class="ifs">dashboard</text>
+
+  <!-- VM smo -->
+  <rect x="640" y="80" width="520" height="240" rx="14" class="vm"/>
+  <text x="658" y="106" class="h">VM smo</text>
+  <text x="1142" y="106" class="meta" text-anchor="end">Etapa 3</text>
+
+  <rect x="660" y="122" width="480" height="56" rx="8" class="s3"/>
+  <text x="900" y="146" class="t">rApp gestor de SLA do slice + API de intenção</text>
+  <text x="900" y="166" class="s">Etapa 3</text>
+
+  <rect x="660" y="240" width="230" height="60" rx="8" class="s3"/>
+  <text x="775" y="265" class="t">Non-RT RIC: A1 PMS</text>
+  <text x="775" y="285" class="s">O-RAN SC · Etapa 3</text>
+
+  <rect x="910" y="240" width="230" height="60" rx="8" class="s3"/>
+  <text x="1025" y="265" class="t">OAM: SDN-R + VES Collector</text>
+  <text x="1025" y="285" class="s">O-RAN SC · Etapa 3</text>
+
+  <path d="M775,178 L775,238" class="l-s3"/>
+  <text x="783" y="214" class="if">R1</text>
+
+  <!-- Intenção: portal -> rApp -->
+  <path d="M530,150 L658,150" class="l-plan"/>
+  <text x="595" y="142" class="ifs" text-anchor="middle">intenção</text>
+  <text x="595" y="168" class="ifs" text-anchor="middle">(Etapa 6)</text>
+
+  <!-- VM ran -->
+  <rect x="40" y="400" width="1120" height="380" rx="14" class="vm"/>
+  <text x="58" y="426" class="h">VM ran</text>
+  <text x="1142" y="426" class="meta" text-anchor="end">Ubuntu 22.04 · Etapas 1 a 4</text>
+
+  <rect x="70" y="450" width="230" height="60" rx="8" class="plan"/>
+  <text x="185" y="475" class="t">Produtor Y1</text>
+  <text x="185" y="495" class="s">Etapa 4</text>
+
+  <rect x="330" y="440" width="290" height="126" rx="10" class="group"/>
+  <text x="346" y="460" class="t" style="text-anchor: start">xApps</text>
+  <rect x="346" y="470" width="258" height="26" rx="6" class="done"/>
+  <text x="475" y="488" class="tm">slice_kpm_monitor (E2SM-KPM)</text>
+  <rect x="346" y="500" width="258" height="26" rx="6" class="done"/>
+  <text x="475" y="518" class="tm">slice_quota_ctrl (E2SM-RC)</text>
+  <rect x="346" y="530" width="258" height="26" rx="6" class="s3"/>
+  <text x="475" y="548" class="t" style="font-size: 12px">xApp de SLA do slice · Etapa 3</text>
+
+  <rect x="660" y="490" width="230" height="60" rx="8" class="s3"/>
+  <text x="775" y="515" class="t">Terminação A1-P</text>
+  <text x="775" y="535" class="s">própria · Etapa 3</text>
+
+  <rect x="915" y="490" width="220" height="60" rx="8" class="s3"/>
+  <text x="1025" y="515" class="t">O1 Adapter (OAI)</text>
+  <text x="1025" y="535" class="s">Etapa 3</text>
+
+  <rect x="70" y="600" width="550" height="56" rx="8" class="done"/>
+  <text x="345" y="624" class="t">Near-RT RIC: FlexRIC</text>
+  <text x="345" y="644" class="s">Etapa 1</text>
+
+  <rect x="70" y="700" width="200" height="56" rx="8" class="done"/>
+  <text x="170" y="724" class="t">UEs A e B (nrUE)</text>
+  <text x="170" y="744" class="s">um por slice · Etapas 1 e 2</text>
+
+  <rect x="330" y="700" width="520" height="56" rx="8" class="done"/>
+  <text x="590" y="724" class="t">gNB OAI (fork) + agente E2</text>
+  <text x="590" y="744" class="s">escalonador por slice · Etapas 1 e 2</text>
+
+  <rect x="910" y="700" width="230" height="56" rx="8" class="done"/>
+  <text x="1025" y="724" class="t">Core 5G: OAI CN5G</text>
+  <text x="1025" y="744" class="s">Etapa 1</text>
+
+  <!-- Ligações dentro da VM ran -->
+  <path d="M658,543 L606,543" class="l-s3"/>
+  <path d="M475,568 L475,598" class="l-done both-done"/>
+  <path d="M185,600 L185,512" class="l-plan"/>
+  <path d="M475,656 L475,698" class="l-done both-done"/>
+  <text x="483" y="683" class="if">E2</text>
+  <path d="M270,728 L328,728" class="l-done both-done"/>
+  <text x="299" y="720" class="ifs" text-anchor="middle">rfsim</text>
+  <path d="M850,728 L908,728" class="l-done both-done"/>
+  <text x="879" y="720" class="ifs" text-anchor="middle">N2/N3</text>
+  <path d="M1025,550 L1025,675 L780,675 L780,698" class="l-s3"/>
+  <text x="1033" y="618" class="ifs">telnet</text>
+
+  <!-- Interfaces entre VMs -->
+  <path d="M185,450 L185,302" class="l-plan"/>
+  <text x="193" y="356" class="if">Y1</text>
+  <text x="193" y="372" class="ifs">mTLS</text>
+
+  <path d="M775,300 L775,488" class="l-s3"/>
+  <text x="783" y="356" class="if">A1</text>
+  <text x="783" y="372" class="ifs">A1AP v2 (REST)</text>
+
+  <path d="M1025,302 L1025,488" class="l-s3 both-s3"/>
+  <text x="1033" y="356" class="if">O1</text>
+  <text x="1033" y="372" class="ifs">NETCONF / VES</text>
+
+  <!-- Legenda -->
+  <rect x="40" y="806" width="22" height="16" rx="4" class="done"/>
+  <text x="70" y="819" class="meta">Concluído (Etapas 1 e 2)</text>
+  <rect x="260" y="806" width="22" height="16" rx="4" class="s3"/>
+  <text x="290" y="819" class="meta">Etapa 3 (em andamento)</text>
+  <rect x="480" y="806" width="22" height="16" rx="4" class="plan"/>
+  <text x="510" y="819" class="meta">Planejado (Etapas 4 a 6)</text>
+  <text x="1160" y="819" class="meta" text-anchor="end">Na Etapa 8, o Near-RT RIC da O-RAN SC substitui o FlexRIC e a terminação A1-P.</text>
+</svg>
