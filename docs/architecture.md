@@ -48,7 +48,7 @@ Na Etapa 8, o FlexRIC e a terminação A1-P própria dão lugar ao Near-RT RIC d
 ## Decisões de projeto
 
 - **RF simulado:** o RFsimulator do OAI troca o rádio por amostras IQ via TCP. Toda a pilha acima da camada física é real, inclusive E2 e KPM.
-- **Versões fixas:** OAI numa tag semanal e FlexRIC como submódulo dessa tag, com as mesmas versões de E2AP e KPM nos dois lados.
+- **Versões fixas:** OAI numa tag semanal, com o gNB compilado de um fork fixado por commit (escalonador por slice e controle das cotas pela E2), e FlexRIC como submódulo desse fork, com as mesmas versões de E2AP e KPM nos dois lados. As versões ficam em `ansible/group_vars/all.yml`.
 - **Pronto antes de próprio:** O1 (O1 Adapter do OAI + OAM da O-RAN SC) e o lado Non-RT do A1 (A1 PMS da O-RAN SC) usam software pronto. Código próprio só onde não existe implementação open source: terminação A1-P para o FlexRIC e Y1.
 - **Terminação A1-P, não adaptador:** o serviço segue a OpenAPI do A1AP, para que o A1 PMS da O-RAN SC o opere como operaria qualquer Near-RT RIC. A conformidade é testada contra o A1 Simulator e o A1 PMS.
 - **Y1 próprio:** nenhum Near-RT RIC open source implementa Y1. A API segue o Y1AP, e cada desvio fica documentado.

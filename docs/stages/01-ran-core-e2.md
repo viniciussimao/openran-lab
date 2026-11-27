@@ -4,6 +4,8 @@
 
 **Objetivo:** uma rede 5G SA completa na VM `ran`, com o gNB conectado ao nearRT-RIC (FlexRIC) pela interface E2.
 
+**Desde a Etapa 2**, o provisionamento compila o gNB de um fork do OAI (decisão 23), e não mais da tag `2026.w46`. Com o arquivo de configuração deste guia, que não tem cotas por slice, o gNB do fork se comporta como o original (teste T0 da Etapa 2), então este roteiro continua valendo. Os passos 1 a 3 abaixo descrevem o build da tag, como referência.
+
 **Critério de aceite:** o UE pinga o ext-dn do core, e a xApp `xapp_kpm_moni` mostra métricas por UE.
 
 ## O que é automático e o que é manual

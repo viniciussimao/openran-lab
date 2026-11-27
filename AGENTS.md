@@ -16,7 +16,7 @@ O estado de cada etapa está na tabela "Status das etapas" do [README](README.md
 | [docs/roadmap.md](docs/roadmap.md) | Etapas, critérios de aceite, releases, componentes prontos e próprios, experimento final e riscos |
 | [docs/architecture.md](docs/architecture.md) | Arquitetura final, interfaces O-RAN e VMs |
 | [docs/decisions.md](docs/decisions.md) | Decisões técnicas, com contexto, motivo e consequências. Consulte antes de mudar versões, roles ou a subida do cenário |
-| [docs/stages/](docs/stages/) | Guia de cada etapa, passo a passo |
+| [docs/stages/](docs/stages/) | Guia de cada etapa: como executar e como funciona; na Etapa 2, também os testes e resultados e a investigação, em arquivos à parte |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Sintomas, causas e soluções já encontrados |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Fluxo de contribuição e padrões de código |
 | [CHANGELOG.md](CHANGELOG.md) | Mudanças por versão |
@@ -40,7 +40,7 @@ O estado de cada etapa está na tabela "Status das etapas" do [README](README.md
 ## Fluxo de trabalho
 
 - O `main` é protegido por um ruleset no GitHub: não aceita push direto, push forçado nem exclusão. Nunca faça commit nem push no `main`.
-- Toda mudança, inclusive de documentação, vai num branch `feat/`, `fix/` ou `docs/` com pull request. Envie cada commit para o branch logo depois de commitar, para o CI rodar.
+- Toda mudança, inclusive de documentação, vai num branch `feat/`, `fix/`, `docs/` ou `release/` com pull request. Envie cada commit para o branch logo depois de commitar, para o CI rodar.
 - O merge só é liberado quando os dois jobs do CI passam (`yamllint e ansible-lint` e `shellcheck e Vagrantfile`). Se o CI falhar, corrija no mesmo branch.
 - Registre cada mudança no `CHANGELOG.md`, na seção "Não publicado".
 - Mantenha nos commits a linha `Co-Authored-By` do agente que os escreveu.

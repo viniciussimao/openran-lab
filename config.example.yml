@@ -14,15 +14,15 @@ management_network:
 
 # VMs do laboratório. Habilite apenas as etapas que for usar.
 vms:
-  ran:            # core 5G, gNB, UEs e Near-RT RIC (Etapas 1 e 2)
+  ran:            # core 5G, gNB, UEs, Near-RT RIC e xApps (todas as etapas)
     enabled: true
     cpus: 8
     memory_mb: 16384
-  obs:            # consumidor Y1, observabilidade e portal (Etapas 3 a 5)
+  obs:            # consumidor Y1, observabilidade e portal (Etapas 4 a 6)
     enabled: false
     cpus: 2
     memory_mb: 4096
-  smo:            # SMO e Non-RT RIC (Etapa 6)
+  smo:            # SMO, Non-RT RIC e rApp (Etapa 3 em diante)
     enabled: false
     cpus: 4
     memory_mb: 8192

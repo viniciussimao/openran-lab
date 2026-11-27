@@ -6,6 +6,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não publicado]
 
+### Alterado
+
+- Documentação revisada para quem chega ao projeto: o guia da Etapa 2 foi dividido em três arquivos (como executar e como funciona; testes e resultados; investigação), com um roteiro único e atualizado para subir o cenário e usar as xApps. O README ganhou o cenário atual, um guia de leitura, a tabela de testes e resultados e as versões do fork e do FlexRIC. Atualizados o NOTICE (branch `rc-slice-ctrl`), os comentários das VMs no `config.example.yml` (numeração nova das etapas), a decisão 3, a arquitetura, o guia da Etapa 1 (gNB do fork) e o CONTRIBUTING (branches `release/`). Novo `xapps/README.md`. Links internos conferidos.
+
 ## [0.2.0] - 2026-11-27
 
 Etapa 2 concluída: dois slices (`1.000001` e `1.000002`) no core e no gNB, um UE em cada; escalonador DL por slice com cotas no modelo `RRMPolicyRatio` num fork do OAI (branch `rc-slice-ctrl`, commit `000b2090`, a partir da tag `2026.w46`); KPM por slice e controle das cotas pela E2 (E2SM-RC CONTROL estilo 2, ação 6), com as xApps próprias `slice_kpm_monitor` e `slice_quota_ctrl`; FlexRIC no commit `ea6d9b4` do upstream. Critério de aceite: mudar a cota de um slice muda a vazão medida com o `iperf3` (C2: com as cotas de 30/70 trocadas para 70/30, o UE 1 foi de 38 para 75 Mbit/s e o UE 2, de 74 para 38 Mbit/s). Validado no servidor de teste com dois `vagrant provision` (o segundo com `changed=0`) e os critérios T0 a T6, K1 a K4 e C1 a C5 do guia da Etapa 2.

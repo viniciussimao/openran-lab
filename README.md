@@ -19,18 +19,34 @@ O objetivo final é um cenário em que o consumidor de um slice acompanha dados 
 | 7 | Automação completa e experimento final | Planejada |
 | 8 | Near-RT RIC da O-RAN SC no lugar do FlexRIC, para comparação | Planejada |
 
-## Arquitetura da Etapa 1
+## O que roda hoje (Etapas 1 e 2)
 
 ```
 VM ran (Ubuntu 22.04)
-├── OAI CN5G (Docker): AMF, SMF, UPF, ext-dn...
-├── nr-softmodem (gNB, --rfsim) ── N2/N3 ──► CN5G
-│        └── agente E2 ── E2 ──► nearRT-RIC (FlexRIC)
-├── nr-uesoftmodem (UE, --rfsim) ── IQ via TCP ──► gNB
-└── xApps (ex.: xapp_kpm_moni) ──► nearRT-RIC
+├── OAI CN5G (Docker): AMF, SMF, UPF, ext-dn... com os slices 1.000001 e 1.000002
+├── nr-softmodem (gNB do fork do OAI, --rfsim) ── N2/N3 ──► CN5G
+│   ├── escalonador DL por slice (cotas min/max/dedicated)
+│   └── agente E2 ── E2 ──► nearRT-RIC (FlexRIC)
+├── nr-uesoftmodem ×2 (um por slice, cada um no seu namespace) ── IQ via TCP ──► gNB
+└── xApps ──► nearRT-RIC
+    ├── slice_kpm_monitor: PRBs e vazão por slice (E2SM-KPM)
+    └── slice_quota_ctrl: muda as cotas de PRB por slice (E2SM-RC)
 ```
 
-A arquitetura final, com as VMs `obs` e `smo`, está em [docs/architecture.md](docs/architecture.md). As decisões técnicas (versões, compiladores, imagens fixadas, cuidados na subida do cenário), com o motivo de cada uma, estão em [docs/decisions.md](docs/decisions.md).
+O gNB vem de um fork do OAI com o escalonador por slice e o controle das cotas pela E2, porque o OAI da tag fixa não controla PRBs por slice por nenhum service model (veja a [investigação](docs/stages/02-multi-slice-investigation.md)). Sem cotas configuradas, o gNB do fork se comporta como o do OAI original.
+
+A arquitetura final, com as VMs `obs` e `smo`, está em [docs/architecture.md](docs/architecture.md).
+
+## Documentação
+
+| Para | Leia |
+| --- | --- |
+| Entender o projeto e o plano | Este README, a [arquitetura](docs/architecture.md) e o [roadmap](docs/roadmap.md) (etapas, critérios de aceite, experimento final e riscos) |
+| Subir e usar o cenário | O guia de cada etapa: [Etapa 1](docs/stages/01-ran-core-e2.md) (um UE) e [Etapa 2](docs/stages/02-multi-slice.md) (dois slices e as xApps) |
+| Saber por que algo é assim | O [registro de decisões](docs/decisions.md), com o contexto, o motivo e as consequências de cada escolha técnica |
+| Ver como o cenário foi testado | A seção [Testes e resultados](#testes-e-resultados) abaixo e os [testes da Etapa 2](docs/stages/02-multi-slice-tests.md) |
+| Resolver um problema | A [solução de problemas](docs/troubleshooting.md), com sintoma, causa e solução dos casos já vistos |
+| Acompanhar as mudanças | O [CHANGELOG](CHANGELOG.md), por versão |
 
 ## Pré-requisitos
 
@@ -38,7 +54,7 @@ Antes de começar, o servidor precisa ter:
 
 - Linux x86_64 com virtualização por hardware (Intel VT-x ou AMD-V) habilitada na BIOS;
 - CPU com **AVX2**, que o OAI exige (AVX-512 é aproveitado se existir);
-- recursos livres para a Etapa 1: **8 vCPUs, 16 GB de RAM e cerca de 100 GB de disco**;
+- recursos livres para a VM `ran` (Etapas 1 e 2): **8 vCPUs, 16 GB de RAM e cerca de 100 GB de disco**. Com os dois UEs saturados, a CPU da VM chega a 93%;
 - **KVM/libvirt, Vagrant, o plugin vagrant-libvirt e Ansible** instalados;
 - o seu usuário nos grupos `libvirt` e `kvm`.
 
@@ -68,7 +84,10 @@ vagrant up                         # cria e provisiona as VMs habilitadas
 vagrant ssh ran                    # entra na VM da RAN
 ```
 
-O `vagrant up` compila o OAI e o FlexRIC e sobe o core 5G na VM `ran` (isso pode levar mais de uma hora). Subir o nearRT-RIC, o gNB, o UE e a xApp continua manual: siga o passo 5 do guia da Etapa 1 em [docs/stages/01-ran-core-e2.md](docs/stages/01-ran-core-e2.md).
+O `vagrant up` compila o OAI (do fork) e o FlexRIC, compila as xApps e sobe o core 5G na VM `ran`. Isso pode levar mais de uma hora. Subir o nearRT-RIC, o gNB, os UEs e as xApps continua manual:
+
+- **cenário com dois slices e as xApps:** seção "Como executar" do [guia da Etapa 2](docs/stages/02-multi-slice.md#como-executar);
+- **cenário mínimo, com um UE:** passo 5 do [guia da Etapa 1](docs/stages/01-ran-core-e2.md).
 
 ## Configuração
 
@@ -94,13 +113,27 @@ Para que o cenário seja reproduzível, as versões ficam fixas em [`ansible/gro
 
 | Componente | Versão |
 | --- | --- |
-| OAI RAN (Duranta) | tag `2026.w46` (commit `cb98db5b`) |
-| FlexRIC | submódulo da tag do OAI (compilado com gcc-12) |
+| OAI RAN (Duranta) | tag `2026.w46` (commit `cb98db5b`), base do fork |
+| Fork do OAI (gNB e nrUE) | [`viniciussimao/openairinterface5g`](https://github.com/viniciussimao/openairinterface5g), branch `rc-slice-ctrl`, commit `000b2090` |
+| FlexRIC | commit `ea6d9b4` do upstream, como submódulo do fork (compilado com gcc-12) |
 | OAI CN5G | v2.2.2 (imagens fixadas por digest) |
 | E2AP / E2SM-KPM | v3 / v3.00 (iguais no OAI e no FlexRIC) |
 | SO das VMs | Ubuntu 22.04 (`generic/ubuntu2204`) |
 
+O fork é ligado por `oai_slice_scheduler_enabled` (padrão `true`); com `false`, o provisionamento usa o OAI da tag, sem o escalonador por slice.
+
 Qualquer atualização de versão é registrada no [CHANGELOG](CHANGELOG.md).
+
+## Testes e resultados
+
+Cada etapa só é concluída depois de passar no critério de aceite, no servidor de teste (Ubuntu 24.04, 12 CPUs, 30 GB), com rfsim.
+
+| Etapa | Critério de aceite | Resultado |
+| --- | --- | --- |
+| 1 | O UE pinga o ext-dn do core, e a `xapp_kpm_moni` mostra métricas por UE | `ping` 5/5, E2 Setup com KPM, RC, CCC e SLICE, e métricas por UE na xApp. Validado também com `vagrant destroy` e `vagrant up` do zero ([guia](docs/stages/01-ran-core-e2.md)) |
+| 2 | Mudar a cota de um slice muda a vazão medida com `iperf3` | Cotas trocadas de 30/70 para 70/30 pela E2: o UE 1 foi de 38 para 75 Mbit/s e o UE 2, de 74 para 38 Mbit/s. Além disso, o escalonador (T0 a T6), o KPM por slice (K1 a K4) e o controle pela E2 (C1 a C5) passaram nos próprios critérios ([testes da Etapa 2](docs/stages/02-multi-slice-tests.md)) |
+
+Os valores de vazão são do rfsim, limitados pela CPU da VM, e não representam rádio real; os testes comparam variações relativas entre slices.
 
 ## Estrutura do repositório
 
@@ -121,15 +154,21 @@ openran-lab/
 │   ├── preflight.sh         # verificação do host
 │   ├── multi-ue-ns.sh       # namespaces dos nrUE (Etapa 2)
 │   └── slice-prb-share.sh   # resumo das linhas [SLICE] do gNB (Etapa 2)
-├── xapps/
-│   ├── slice_kpm_monitor/   # xApp de KPM por slice (Etapa 2)
-│   └── slice_quota_ctrl/    # xApp que muda as cotas por E2SM-RC (Etapa 2)
-└── docs/
-    ├── architecture.md
-    ├── decisions.md         # registro das decisões técnicas
-    ├── roadmap.md
-    ├── troubleshooting.md
-    └── stages/              # um guia por etapa
+├── xapps/                   # xApps próprias, em C (Apache-2.0)
+│   ├── README.md
+│   ├── slice_kpm_monitor/   # KPM por slice (Etapa 2)
+│   └── slice_quota_ctrl/    # cotas por slice pelo E2SM-RC (Etapa 2)
+├── docs/
+│   ├── architecture.md
+│   ├── decisions.md         # registro das decisões técnicas
+│   ├── roadmap.md
+│   ├── troubleshooting.md
+│   └── stages/              # guias das etapas
+│       ├── 01-ran-core-e2.md
+│       ├── 02-multi-slice.md                # como executar e como funciona
+│       ├── 02-multi-slice-tests.md          # roteiros e resultados dos testes
+│       └── 02-multi-slice-investigation.md  # leitura de código que levou ao fork
+└── .github/                 # CI (lint) e modelos de issue e PR
 ```
 
 ## Como contribuir
@@ -140,4 +179,4 @@ Veja o [CONTRIBUTING.md](CONTRIBUTING.md). Em resumo: nomes de arquivos e variá
 
 O código deste repositório é distribuído sob a [Apache License 2.0](LICENSE).
 
-O repositório **não redistribui** código de terceiros. O OAI RAN (Duranta), o OAI CN5G e o FlexRIC são baixados durante o provisionamento, a partir dos repositórios oficiais, e seguem as próprias licenças.
+O repositório **não redistribui** código de terceiros. O OAI RAN (Duranta), o OAI CN5G e o FlexRIC são baixados durante o provisionamento e seguem as próprias licenças. O fork do OAI usado pelo gNB segue a licença do OAI (CSSL v1.0); veja o [NOTICE](NOTICE).
