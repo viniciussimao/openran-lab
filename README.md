@@ -11,7 +11,7 @@ O objetivo final é um cenário em que o consumidor de um slice acompanha dados 
 | Etapa | Entrega | Status |
 | --- | --- | --- |
 | 1 | RAN + core + E2 (OAI gNB/nrUE em rfsim, OAI CN5G, FlexRIC) | Concluída (`v0.1.0`) |
-| 2 | Multi-slice (dois slices, dois UEs, xApp de slicing) | Em andamento: escalonador por slice e KPM por slice prontos; falta o controle por E2SM-RC ([guia](docs/stages/02-multi-slice.md)) |
+| 2 | Multi-slice (dois slices, dois UEs, xApp de slicing) | Em andamento: escalonador, KPM e controle de cotas por E2SM-RC prontos; falta fechar a release ([guia](docs/stages/02-multi-slice.md)) |
 | 3 | Caminho O-RAN com FlexRIC (SMO, Non-RT RIC, rApp, terminação A1-P, O1) | Planejada |
 | 4 | Interface Y1 (produtor e consumidor com mTLS) | Planejada |
 | 5 | Observabilidade (OpenTelemetry, Prometheus, Grafana) | Planejada |
@@ -122,7 +122,8 @@ openran-lab/
 │   ├── multi-ue-ns.sh       # namespaces dos nrUE (Etapa 2)
 │   └── slice-prb-share.sh   # resumo das linhas [SLICE] do gNB (Etapa 2)
 ├── xapps/
-│   └── slice_kpm_monitor/   # xApp de KPM por slice (Etapa 2)
+│   ├── slice_kpm_monitor/   # xApp de KPM por slice (Etapa 2)
+│   └── slice_quota_ctrl/    # xApp que muda as cotas por E2SM-RC (Etapa 2)
 └── docs/
     ├── architecture.md
     ├── decisions.md         # registro das decisões técnicas

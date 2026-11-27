@@ -6,6 +6,7 @@
 xapps_src_dir: "{{ playbook_dir }}/../xapps"
 xapps_list:
   - slice_kpm_monitor
+  - slice_quota_ctrl
 
 # Código copiado para a VM e diretório de build de cada xApp
 xapps_dest_dir: "{{ lab_home }}/openran-lab-xapps"

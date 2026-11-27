@@ -421,18 +421,7 @@ Com `oai_slice_scheduler_enabled: true` em `ansible/group_vars/all.yml`, a role 
 | `~/gnb-slices-ded40.conf` | `dedicated_ratio` e `min_ratio` 40 / 0, `max_ratio` 100 / 100 | T4 |
 | `~/gnb-slices-100-100.conf` | `max_ratio` 100 / 100 | controle: escalonador ligado, sem limite |
 
-Os perfis ficam em `oai_ran_gnb_quota_profiles`, nos defaults da role. Durante a PoC, a chave era ligada só na cópia local do servidor; desde a [decisão 23](
-## 23. Fork do OAI como padrão
-
-**Data:** 2026-11-25.
-
-- **Contexto:** a decisão 20 deixou o fork do OAI desligado em `group_vars` até a PoC passar. A PoC passou (T0 a T6), e a xApp de KPM por slice também (K1 a K4), com o fork e a correção do RIC (decisões 21 e 22).
-- **Decisão:** `oai_slice_scheduler_enabled: true` por padrão, com `oai_fork_branch: kpm-per-slice` e `oai_fork_commit` no `95a3e328`. A role nova `xapps` compila a `slice_kpm_monitor` no provisionamento, depois das roles `oai_ran`, `flexric` e `oai_cn5g`.
-- **Motivo:** a Etapa 2 depende do escalonador por slice, do KPM por assinatura e da correção do RIC. Com a chave desligada, cada teste exigia mudar a cópia local do `group_vars` e compilar a xApp à mão.
-- **Consequências:**
-  - um `vagrant provision` numa VM da Etapa 1 recompila o gNB e o FlexRIC;
-  - voltar ao OAI upstream é pôr a chave em `false`: o gNB fica sem o escalonador por slice, sem o KPM por assinatura e sem a correção do RIC (a xApp continua compilando, mas o K4 falha).
-), ela fica ligada por padrão.
+Os perfis ficam em `oai_ran_gnb_quota_profiles`, nos defaults da role. Durante a PoC, a chave era ligada só na cópia local do servidor; desde a [decisão 23](../decisions.md#23-fork-do-oai-como-padrão), ela fica ligada por padrão.
 
 ### Roteiro
 
@@ -459,7 +448,7 @@ No terminal de testes, suba o segundo servidor do iperf3 e defina as duas funç�
 ```bash
 docker exec oai-ext-dn iperf3 -s -p 5202 -D
 ue_ip() { sudo ip netns exec "ue$1" ip -4 -o addr show oaitun_ue1 | awk '{print $4}' | cut -d/ -f1; }
-janela() { local nome=$1 dur=$2 rate=$3 L n; shift 3; L=$(wc -l < /tmp/gnb.log); for n in "$@"; do sudo ip netns exec "ue$n" iperf3 -c 192.168.70.135 -p "520$n" -B "$(ue_ip "$n")" -u -b "$rate" -l 1300 -R -t "$dur" --logfile "/tmp/iperf-$nome-ue$n.log" & done; wait; for n in "$@"; do echo "== UE$n"; tail -n 4 "/tmp/iperf-$nome-ue$n.log"; done; tail -n +"$L" /tmp/gnb.log | ~/slice-prb-share.sh -s 3 | tee "/tmp/$nome.txt"; }
+janela() { local nome=$1 dur=$2 rate=$3 L n pids=(); shift 3; L=$(wc -l < /tmp/gnb.log); for n in "$@"; do sudo ip netns exec "ue$n" iperf3 -c 192.168.70.135 -p "520$n" -B "$(ue_ip "$n")" -u -b "$rate" -l 1300 -R -t "$dur" --logfile "/tmp/iperf-$nome-ue$n.log" & pids+=($!); done; wait "${pids[@]}"; for n in "$@"; do echo "== UE$n"; tail -n 4 "/tmp/iperf-$nome-ue$n.log"; done; tail -n +"$L" /tmp/gnb.log | ~/slice-prb-share.sh -s 3 | tee "/tmp/$nome.txt"; }
 ```
 
 `janela NOME SEGUNDOS TAXA UE...` marca a linha atual do log do gNB, roda o iperf3 nos UEs pedidos ao mesmo tempo e, no fim, resume só o trecho do teste. O `-s 3` descarta os três primeiros períodos, enquanto o tráfego sobe. Antes de cada teste, confira o perfil e os IPs:
@@ -512,19 +501,8 @@ Recursos durante o T5, com cotas, comparados com o fork sem cotas: CPU da VM de 
 ### Pontos em aberto
 
 - **Os cerca de 25% de PRBs que nenhum UE usa.** Candidatos: slots em que o UE não pode ser escalonado (processos HARQ esperando confirmação, restrições de `k1`), o slot misto do TDD contado como cheio, ou PRBs livres no `vrb_map` que o proportional fair não aproveita. Investigar com o `nrMAC_stats.log` lido durante o tráfego e, se preciso, um contador por slot no log do escalonador.
-- **Fork como padrão.** Ligado em 2026-11-25, depois da PoC e da [xApp de monitoração KPM por slice](#xapp-de-monitoração-kpm-por-slice) ([decisão 23](
-## 23. Fork do OAI como padrão
-
-**Data:** 2026-11-25.
-
-- **Contexto:** a decisão 20 deixou o fork do OAI desligado em `group_vars` até a PoC passar. A PoC passou (T0 a T6), e a xApp de KPM por slice também (K1 a K4), com o fork e a correção do RIC (decisões 21 e 22).
-- **Decisão:** `oai_slice_scheduler_enabled: true` por padrão, com `oai_fork_branch: kpm-per-slice` e `oai_fork_commit` no `95a3e328`. A role nova `xapps` compila a `slice_kpm_monitor` no provisionamento, depois das roles `oai_ran`, `flexric` e `oai_cn5g`.
-- **Motivo:** a Etapa 2 depende do escalonador por slice, do KPM por assinatura e da correção do RIC. Com a chave desligada, cada teste exigia mudar a cópia local do `group_vars` e compilar a xApp à mão.
-- **Consequências:**
-  - um `vagrant provision` numa VM da Etapa 1 recompila o gNB e o FlexRIC;
-  - voltar ao OAI upstream é pôr a chave em `false`: o gNB fica sem o escalonador por slice, sem o KPM por assinatura e sem a correção do RIC (a xApp continua compilando, mas o K4 falha).
-)).
-- **Próximo passo:** o handler E2SM-RC estilo 2 sobre `nr_slice_policy_set()`, para uma xApp mudar as cotas pela E2.
+- **Fork como padrão.** Ligado em 2026-11-25, depois da PoC e da [xApp de monitoração KPM por slice](#xapp-de-monitoração-kpm-por-slice) ([decisão 23](../decisions.md#23-fork-do-oai-como-padrão)).
+- **Controle pela E2.** Pronto: o [controle de cotas pelo E2SM-RC](#controle-de-cotas-pelo-e2sm-rc) passou nos critérios C1 a C5.
 
 ## xApp de monitoração KPM por slice
 
@@ -616,3 +594,94 @@ Fork `12537539` (`kpm-per-slice`), perfil `30-70`, dois UEs. No K1 a K4, UDP de 
 - **K2:** o `slice-prb-share.sh` cobre os 60 s inteiros, incluindo o começo e o fim do tráfego; a xApp, só 40 s com o tráfego estável. O slice 1 fica no teto de 30% e não muda; o slice 2, que ocupa o que sobra, sente a diferença. O critério passa a comparar as duas medições no mesmo intervalo (K2b). Mesmo assim, o slice 2 fica cerca de 2,5 p.p. acima no KPM, dentro da tolerância; a causa não foi investigada.
 - **K3:** no agente E2, o `DRB.UEThpDl` é calculado com os bytes de PDU que o RLC do gNB transmitiu (`rlc.txpdu_bytes`). Com saturação, isso inclui retransmissões, cabeçalhos e pacotes que o nrUE perde antes de chegar ao iperf3 (perda de 60% a 79%). A razão entre os slices pelo KPM (2,43) acompanha a dos PRBs (2,38), não a do iperf3 (2,06): o KPM mostra o que o gNB transmite. O critério passa a valer sem saturação (K3b), em que a diferença de 1% a 2% corresponde aos cabeçalhos IP e UDP que o iperf3 não conta.
 - **PRBs sem saturação:** no K3b, o KPM mostra 7,3% e 8,0% dos PRBs, e o `slice-prb-share.sh`, 14,9% e 15,5%. As bases são diferentes: o KPM divide pelos PRBs de todos os slots DL (106 por slot), e o `%disp` do escalonador, pelos PRBs livres só nos slots em que ele distribuiu PRBs entre os slices. Com saturação, as duas bases coincidem; sem saturação, a do escalonador fica menor (88 mil contra 168 mil PRBs por período). Por isso o K2 só vale com os slices saturados.
+
+## Controle de cotas pelo E2SM-RC
+
+Última peça da Etapa 2 ([decisão 25](../decisions.md#25-controle-de-cotas-pelo-e2sm-rc-estilo-2)): uma xApp muda as cotas de PRB por slice pela E2, sem reiniciar o gNB. O gNB anuncia o CONTROL estilo 2 do E2SM-RC, "Radio Resource Allocation Control", com a ação 6, "Slice-level PRB quota" (E2SM-RC v1.03, seções 7.6.3 e 8.4.3.6), e aplica as cotas com a `nr_slice_policy_set()` do escalonador por slice.
+
+### Handler no fork
+
+A branch `rc-slice-ctrl` do fork (commit `000b2090`, a partir de `kpm-per-slice`) traz:
+
+- **Anúncio no E2 Setup:** o estilo 2, só com a ação 6, e a árvore de parâmetros abaixo. Só nós com MAC (gNB monolítico ou DU) anunciam.
+- **Conversão da mensagem** em `ran_func_rc_slice.{h,c}`, sem depender do MAC, com testes GTest em `O-RAN/tests/` (`-DENABLE_TESTS=ON`).
+- **Handler** em `ran_func_rc.c`. Ele atualiza só os slices da mensagem e mantém as cotas dos outros. A cota neutra (`min 0, max 100, ded 0`) remove a cota do slice; sem nenhum slice com cota, o DL volta ao proportional fair. Não há mensagem para remover todas de uma vez, porque um parâmetro LIST do E2SM-RC precisa de ao menos um item. Ele exige o PLMN de uma célula do gNB e valida o resultado com as regras do escalonador. Uma mensagem inválida não muda nada.
+
+| ID | Parâmetro | Tipo | Valor |
+| --- | --- | --- | --- |
+| 1 | RRM Policy Ratio List | LIST | Um item por grupo de cotas |
+| 2 | RRM Policy Ratio Group | STRUCTURE (item) | 3, 10, 11 e 12 |
+| 3 | RRM Policy | STRUCTURE | 4 |
+| 4 | RRM Policy Member List | LIST | Um item por slice |
+| 5 | RRM Policy Member | STRUCTURE (item) | 6 e 7 |
+| 6 | PLMN Identity | ELEMENT | 3 octetos BCD (TS 38.413) |
+| 7 | S-NSSAI | STRUCTURE | 8 e, se houver, 9 |
+| 8 | SST | ELEMENT | 1 octeto (ou INTEGER) |
+| 9 | SD | ELEMENT, opcional | 3 octetos (ou INTEGER) |
+| 10 | Min PRB Policy Ratio | ELEMENT, opcional | 0 a 100, padrão 0 |
+| 11 | Max PRB Policy Ratio | ELEMENT, opcional | 0 a 100, padrão 100 |
+| 12 | Dedicated PRB Policy Ratio | ELEMENT, opcional | 0 a 100, padrão 0 |
+
+Nos valores, os itens de uma LIST (2 e 5) não levam ID: cada item já é a STRUCTURE com os membros dele. Os IDs 2 e 5 só aparecem na definição anunciada.
+
+**Resposta ao CONTROL:** o agente E2 do FlexRIC responde `CONTROL ACKNOWLEDGE` mesmo quando o gNB recusa as cotas, porque não tem caminho para `CONTROL FAILURE`. O resultado fica no log do gNB:
+
+- cotas aplicadas: linhas `[SLICE] cota DL do slice ...` seguidas de `[SLICE] E2SM-RC: Slice-level PRB quota aplicada`;
+- recusa: `[SLICE] E2SM-RC: Slice-level PRB quota recusada: <motivo>`.
+
+### xApp `slice_quota_ctrl`
+
+Fica em [`xapps/slice_quota_ctrl/`](../../xapps/slice_quota_ctrl/), sob a Apache-2.0, com o mesmo desenho da `slice_kpm_monitor`:
+
+| Parte | Arquivo | Papel |
+| --- | --- | --- |
+| Núcleo | `src/sqc_core.{h,c}` | Lê as cotas (`SST.SD:min:max:ded`) e o PLMN, valida com as regras do gNB e codifica o PLMN e o SD. Não depende de RIC; tem testes em `tests/` |
+| Adaptador FlexRIC | `src/sqc_flexric.c` | Confere se o E2 node anuncia a ação 6, monta o CONTROL e o envia |
+
+É uma ferramenta de linha de comando: manda um CONTROL e termina.
+
+```bash
+slice_quota_ctrl --check                                              # mostra o anúncio do estilo 2
+slice_quota_ctrl --quota 1.000001:0:70:0 --quota 1.000002:0:30:0      # muda as cotas dos dois slices
+slice_quota_ctrl --remove 1.000001 --remove 1.000002                  # remove as cotas dos dois slices
+```
+
+O PLMN padrão é `001.01`; outro vai em `--plmn MCC.MNC`. A xApp recusa, antes de enviar, cotas fora de `ded <= min <= max <= 100`, S-NSSAI repetida ou soma dos `min` acima de 100. O gNB confere de novo, já com as cotas dos outros slices.
+
+### Compilação na VM
+
+Desde a validação (C1 a C5), o provisionamento faz tudo: `oai_fork_commit` aponta para o commit `000b2090` da branch `rc-slice-ctrl`, e a role `xapps` compila a `slice_quota_ctrl` junto com a `slice_kpm_monitor` e põe as duas no `PATH`. Para compilar à mão, por exemplo ao mexer no código direto na VM, os comandos são os mesmos da [`slice_kpm_monitor`](#compilação-na-vm), trocando o nome da pasta.
+
+### Critérios de aceite
+
+| Teste | Cenário | Critério |
+| --- | --- | --- |
+| C1 Anúncio | gNB da branch `rc-slice-ctrl`, `slice_quota_ctrl --check` | A xApp mostra o estilo 2, a ação 6 e a árvore de parâmetros 1 a 12 |
+| C2 Troca com tráfego | Perfil `30-70`, os dois UEs saturados; no meio do tráfego, CONTROL para 70 / 30 | Linhas `cota DL` novas e `aplicada` no log; `prb_dl_pct` da `slice_kpm_monitor` troca de lado (cerca de 22% e 52% para 52% e 22%) em até 2 relatórios |
+| C3 Recusa | CONTROL com `min` 60 nos dois slices, montado sem a validação da xApp | O log mostra `recusada` com o motivo; as cotas não mudam; o gNB continua no ar |
+| C4 Remoção | `slice_quota_ctrl --remove 1.000001 --remove 1.000002` com tráfego | Linha `cotas por slice desligadas` no log; a divisão de PRBs passa à de sem cotas |
+| C5 Convivência | C2 a C4 com a `slice_kpm_monitor` rodando | Nenhum erro nas xApps; nenhum assert no gNB |
+
+No C3, a xApp recusa sozinha a soma de mínimos acima de 100. Para o gNB receber a mensagem, o teste usa dois CONTROLs válidos em sequência, que juntos passam do limite: primeiro `--quota 1.000001:60:100:0`, depois `--quota 1.000002:60:100:0`. O segundo só é inválido somado às cotas em vigor, e é o gNB que o recusa.
+
+### Resultados (2026-11-27)
+
+Fork no commit `c6e76b9f` para C1 a C3 e a primeira tentativa do C4; o C4 e o C5 passaram com a correção da remoção (abaixo), no `000b2090`. Perfil `30-70` na subida, os dois UEs com UDP de 200 Mbit/s cada.
+
+| Teste | Resultado | Situação |
+| --- | --- | --- |
+| C1 | A `slice_quota_ctrl --check` mostrou o estilo 2, a ação 6 e a árvore de parâmetros 1 a 12 na hierarquia certa; o E2 Setup com o anúncio novo não gerou nenhum assert | Passou |
+| C2 | Com 30 / 70: KPM 22% / 51%, `%disp` 22,3% / 48,6%, iperf3 38,4 / 74,2 Mbit/s. Depois do CONTROL para 70 / 30: KPM 51% / 22%, `%disp` 48,7% / 22,3%, iperf3 74,8 / 37,5 Mbit/s. Numa rodada com a troca no meio, os dois UEs ficaram com a média (56,2 / 58,6 Mbit/s). O slice que perdeu cota foi de 52% para 22% com um único relatório de transição (42%) | Passou |
+| C3 | O primeiro CONTROL (`1.000001` com `min` 60) foi aplicado e manteve a cota do slice 2 (`1 slice(s) na mensagem, 2 com cota`); o segundo foi recusado pelo gNB com `soma dos min_ratio (120) maior que 100`, sem mudar as cotas; gNB no ar, sem asserts | Passou |
+| C4 | Primeira versão: o `--clear` abortou na xApp, no codificador ASN.1 do FlexRIC (`rc_enc_ctrl_msg_asn ... Failed to encode`), sem chegar ao gNB; até ali, com `min` 60 no slice 1 e `max` 30 no slice 2, KPM 59% / 15% (129 / 33 Mbit/s). Com o `--remove` (fork `000b2090`): de 30 / 70, KPM 22% / 52% e 49 / 120 Mbit/s; depois de remover as duas cotas, **38% / 38%** e 85 / 85 Mbit/s, com um relatório de transição; log com `cotas por slice desligadas` e `aplicada (2 slice(s) na mensagem, 0 com cota)` | Passou |
+| C5 | Do C2 ao C4, nenhum assert no gNB e nenhum erro nos logs da `slice_kpm_monitor` | Passou |
+
+**Remoção das cotas.** No E2SM-RC, um parâmetro LIST precisa ter ao menos um item, então a lista vazia que a primeira versão usava para "remover todas as cotas" não é uma mensagem válida. Os testes do fork não pegaram o problema porque montam a mensagem direto na estrutura interna, sem o codificador. A correção (fork `000b2090`) usa a cota neutra, `min 0, max 100, ded 0`, que são os valores padrão do RRMPolicyRatio e não limitam nada: o gNB tira da lista o slice que a recebe e, sem nenhum slice com cota, volta à alocação padrão. Na xApp, o `--clear` virou `--remove SST.SD`, que pode se repetir.
+
+**UE que cai por inatividade.** Numa rodada, os UEs ficaram minutos sem tráfego depois da subida; a rede liberou a conexão do UE 1, e, quando o iperf3 começou, o core recusou o pedido de volta do UE (`Service Reject ... UE_identity_cannot_be_derived_by_the_network`) e o nrUE encerrou. Para os testes, um ping de fundo em cada UE mantém a conexão ([troubleshooting](../troubleshooting.md)):
+
+```bash
+for n in 1 2; do sudo ip netns exec ue$n ping -I oaitun_ue1 -i 1 192.168.70.135 > /dev/null 2>&1 & done
+```
+
+A `janela` espera só os próprios iperf3 (`wait` com os PIDs), para funcionar com esses pings no mesmo terminal.
