@@ -1,0 +1,30 @@
+---
+# Non-RT RIC do passo 3.2 da Etapa 3 (roteiro manual, VM smo):
+# A1 Policy Management Service (A1 PMS) e A1 Simulator da O-RAN SC.
+# As tags vêm dos arquivos de release dos repositórios; o digest de cada
+# imagem é registrado no guia depois do primeiro pull e fixado na role.
+name: nonrtric
+
+services:
+  # Near-RT RIC simulado, com a API A1AP v2.0 (/A1-P/v2)
+  a1-sim:
+    image: nexus3.o-ran-sc.org:10002/o-ran-sc/a1-simulator:2.8.1
+    container_name: a1-sim
+    environment:
+      A1_VERSION: STD_2.0.0
+      ALLOW_HTTP: "true"
+      REMOTE_HOSTS_LOGGING: "1"
+    ports:
+      - "8085:8085"
+
+  # A1 PMS: descobre os Near-RT RICs do application_configuration.json
+  # e oferece a API northbound (v3 em /a1-policy-management/v1)
+  a1-pms:
+    image: nexus3.o-ran-sc.org:10002/o-ran-sc/nonrtric-plt-a1policymanagementservice:2.13.0
+    container_name: a1-pms
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./application_configuration.json:/opt/app/policy-agent/data/application_configuration.json:ro
+    depends_on:
+      - a1-sim

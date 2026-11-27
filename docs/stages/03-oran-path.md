@@ -1,6 +1,6 @@
 # Etapa 3: caminho O-RAN com FlexRIC
 
-**Status:** em andamento. O desenho abaixo foi aprovado em 2026-11-27 ([decisão 26](../decisions.md#26-desenho-da-etapa-3-caminho-o-ran-com-flexric)). O passo 3.1 (rede privada e VM `smo`) está concluído e validado no servidor de teste; veja o [passo 3.1](#passo-31-rede-privada-e-vm-smo). O próximo é o 3.2.
+**Status:** em andamento. O desenho abaixo foi aprovado em 2026-11-27 ([decisão 26](../decisions.md#26-desenho-da-etapa-3-caminho-o-ran-com-flexric)). O passo 3.1 (rede privada e VM `smo`) está concluído e validado no servidor de teste; veja o [passo 3.1](#passo-31-rede-privada-e-vm-smo). O passo 3.2 (A1 PMS com o A1 Simulator) tem o roteiro manual pronto e aguarda a validação; veja o [passo 3.2](#passo-32-a1-pms-com-o-a1-simulator).
 
 **Objetivo:** fechar o laço O-RAN completo, intenção → rApp → A1 → xApp → E2 → gNB, com componentes prontos da O-RAN SC onde existem e código próprio só onde não existem (decisão 16). Mostrar o gNB no SMO pelo O1.
 
@@ -242,9 +242,99 @@ No servidor, no diretório do repositório:
 
 **Resultado no servidor de teste (2026-11-27):** R1 a R5 passaram. A rede `openran-lab` ficou sem `<forward>` e sem `<dhcp>`, com o host em `192.168.150.1`. A `ran` (`.10`) e a `smo` (`.20`) se alcançam pelos nomes, com 0% de perda e cerca de 0,3 ms. O segundo `vagrant provision` deu `changed=0` nas duas VMs. A `smo` tem 2 CPUs, 5921 MB e Docker 29.10.1. A `ran`, criada antes da mudança, precisou do `virsh attach-interface` do passo 4: o `vagrant reload` não acrescentou a `eth1`.
 
+## Passo 3.2: A1 PMS com o A1 Simulator
+
+**O que é:** o Non-RT RIC da O-RAN SC na VM `smo`, em Docker: o A1 PMS e o A1 Simulator no modo `STD_2.0.0` (A1AP v2.0). O simulador faz o papel do Near-RT RIC até a terminação A1-P própria ficar pronta (passo 3.3). É a referência de conformidade: o que o PMS fizer com o simulador, a terminação precisa aceitar igual.
+
+**Roteiro manual:** primeiro à mão; vira role do Ansible depois de validado, com as imagens fixadas por digest.
+
+### Arquivos
+
+Ficam em [`configs/nonrtric/`](../../configs/nonrtric/):
+
+| Arquivo | Conteúdo |
+| --- | --- |
+| `docker-compose.yml` | `a1-sim` (`a1-simulator:2.8.1`, porta 8085) e `a1-pms` (`nonrtric-plt-a1policymanagementservice:2.13.0`, porta 8081), com as tags dos arquivos de release dos repositórios |
+| `application_configuration.json` | O Near-RT RIC que o PMS gerencia: `ric-sim`, em `http://a1-sim:8085` |
+| `policytypes/ORAN_SliceSLATarget_2.0.0.json` | O tipo de política carregado no simulador: o esquema da política (`scope.sliceId` e `sliceSlaObjectives`) e o do estado (`enforceStatus` e `enforceReason`), escritos a partir da A1TD (P2) |
+| `examples/policy-slice1.json` | Pedido de criação de política pela API v3 do PMS: slice `1.000001`, vazão DL garantida de 30 Mbit/s e máxima de 60 Mbit/s |
+
+O simulador começa sem nenhum tipo, e o PMS só lê os tipos de um Near-RT RIC quando o descobre. Por isso o tipo é carregado no simulador antes de o PMS subir.
+
+### Como executar
+
+No servidor, no diretório do repositório:
+
+1. Copie os arquivos para a `smo` e entre nela. Para copiar de novo, apague antes a pasta da `smo` (`vagrant ssh smo -c "rm -rf ~/nonrtric"`); senão o `vagrant upload` cria uma pasta dentro da outra:
+
+   ```bash
+   vagrant upload configs/nonrtric nonrtric smo
+   vagrant ssh smo
+   ```
+
+2. Na `smo`, baixe as imagens e anote os digests:
+
+   ```bash
+   cd ~/nonrtric
+   docker compose pull
+   docker compose config --images | xargs docker image inspect --format '{{json .RepoDigests}}'
+   ```
+
+3. Suba o simulador e carregue o tipo de política (deve responder `201`):
+
+   ```bash
+   docker compose up -d a1-sim
+   sleep 5
+   curl -s -o /dev/null -w '%{http_code}\n' -X PUT 'http://localhost:8085/policytype?id=ORAN_SliceSLATarget_2.0.0' \
+     -H 'Content-Type: application/json' --data-binary @policytypes/ORAN_SliceSLATarget_2.0.0.json
+   curl -s http://localhost:8085/A1-P/v2/policytypes; echo
+   ```
+
+4. Suba o PMS e espere ele descobrir o simulador (cerca de 30 s):
+
+   ```bash
+   docker compose up -d a1-pms
+   sleep 30
+   PMS=http://localhost:8081/a1-policy-management/v1
+   curl -s $PMS/rics | python3 -m json.tool
+   curl -s $PMS/policy-types | python3 -m json.tool
+   ```
+
+5. Crie, leia e apague uma política pelo PMS, conferindo no simulador:
+
+   ```bash
+   curl -s -i -X POST $PMS/policies -H 'Content-Type: application/json' --data-binary @examples/policy-slice1.json | head -1
+   curl -s http://localhost:8085/A1-P/v2/policytypes/ORAN_SliceSLATarget_2.0.0/policies; echo
+   curl -s $PMS/policies/slice1-sla | python3 -m json.tool
+   curl -s $PMS/policies/slice1-sla/status | python3 -m json.tool
+   curl -s -o /dev/null -w '%{http_code}\n' -X DELETE $PMS/policies/slice1-sla
+   curl -s http://localhost:8085/A1-P/v2/policytypes/ORAN_SliceSLATarget_2.0.0/policies; echo
+   ```
+
+6. Confira a versão do A1 que o PMS usou e o consumo de recursos:
+
+   ```bash
+   docker logs a1-sim 2>&1 | grep -E 'A1-P/v2' | head -5
+   docker logs a1-pms 2>&1 | grep -iE 'ric-sim|STD_V2|version' | head -10
+   docker stats --no-stream; free -m
+   ```
+
+Para desligar: `docker compose down`, em `~/nonrtric`.
+
+### Critérios
+
+| # | Verificação | Esperado |
+| --- | --- | --- |
+| N1 | Carga do tipo no simulador | `201`, e `GET /A1-P/v2/policytypes` lista `ORAN_SliceSLATarget_2.0.0` |
+| N2 | `GET $PMS/rics` | `ric-sim` com estado `AVAILABLE` e o tipo `ORAN_SliceSLATarget_2.0.0` |
+| N3 | Protocolo usado | Pedidos do PMS em `/A1-P/v2/...` no log do simulador (A1AP v2.0, `STD_V2_0_0`) |
+| N4 | `GET $PMS/policy-types` | O tipo `ORAN_SliceSLATarget_2.0.0` no `ric-sim` |
+| N5 | Criação, leitura e remoção pelo PMS | `201` na criação, a política `slice1-sla` no simulador e no `GET` do PMS, um estado com `enforceStatus`, `204` na remoção e a lista do simulador vazia depois |
+| N6 | Recursos da `smo` | Os dois contêineres cabem nos 6 GB, com folga para o rApp (passo 3.5) |
+
 ## A confirmar antes ou durante a implementação
 
-- **Imagens da release N:** escolher as tags do A1 PMS e do A1 Simulator e fixar os digests.
+- **Imagens da release N:** as tags escolhidas (PMS 2.13.0 e simulador 2.8.1, dos arquivos de release) ainda precisam ter os digests registrados no passo 3.2.
 - **O1 Adapter com o OAI `2026.w46`:** confirmar que o adapter entende a saída do módulo `o1` do telnet desta tag. Nenhuma fonte documenta a versão testada.
 - **Tamanho do OAM em Docker:** medir a memória real da `solution/smo` (common + oam) antes de decidir os recursos da `smo`.
 - **Unidade e base da vazão:** confirmar, com o simulador, se o PMS e o rApp usam kbps de ponta a ponta, como diz a A1TD.
