@@ -6,6 +6,10 @@ O objetivo final é um cenário em que o consumidor de um slice acompanha dados 
 
 > **Status:** em desenvolvimento. As Etapas 1 e 2 estão concluídas (releases `v0.1.0` e `v0.2.0`); a próxima é a Etapa 3, o caminho O-RAN completo. Veja o [roadmap](docs/roadmap.md).
 
+![Arquitetura do openran-lab: VMs obs, smo e ran, ligadas pelas interfaces Y1, A1, O1 e E2, com o status de cada componente por etapa](docs/images/architecture.svg)
+
+Verde: pronto (Etapas 1 e 2). Azul: Etapa 3, em andamento. Cinza tracejado: planejado. Detalhes de cada interface e VM na [arquitetura](docs/architecture.md).
+
 ## Status das etapas
 
 | Etapa | Entrega | Status |
@@ -35,7 +39,7 @@ VM ran (Ubuntu 22.04)
 
 O gNB vem de um fork do OAI com o escalonador por slice e o controle das cotas pela E2, porque o OAI da tag fixa não controla PRBs por slice por nenhum service model (veja a [investigação](docs/stages/02-multi-slice-investigation.md)). Sem cotas configuradas, o gNB do fork se comporta como o do OAI original.
 
-A arquitetura final, com as VMs `obs` e `smo`, está em [docs/architecture.md](docs/architecture.md).
+A figura no início desta página mostra onde isso entra na arquitetura final, com as VMs `obs` e `smo`.
 
 ## Documentação
 

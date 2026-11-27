@@ -4,24 +4,9 @@ O laboratório chega ao cenário final em oito etapas (veja o [roadmap](roadmap.
 
 ## Visão geral
 
-```
-VM obs                                     VM smo
-  Portal do consumidor + botão ── intenção ──► SMO: entrada de intenções
-  OTel Collector / Prometheus / Grafana          rApp gestor de SLA do slice
-  Consumidor Y1 (SDK OpenTelemetry)              Non-RT RIC: A1 e SDN-R/VES (O1)
-          ▲                                            │ A1              │ O1
-          │ Y1 (mTLS)                                  ▼                 ▼
-VM ran    │
-  Produtor Y1 ◄── Near-RT RIC (FlexRIC) + xApps ◄── Terminação A1-P  O1 Adapter
-                          ▲                                              │
-                          │ E2                                           │ telnet
-                          ▼                                              │
-  UEs A e B (rfsim) ◄──► gNB OAI + agente E2 ◄─────────────────────────────┘
-                          ▲
-                          │ N2/N3
-                          ▼
-                  Core 5G OAI (CN5G)
-```
+![Arquitetura do openran-lab: VMs obs, smo e ran, ligadas pelas interfaces Y1, A1, O1 e E2, com o status de cada componente por etapa](images/architecture.svg)
+
+As cores mostram o status: verde, pronto (Etapas 1 e 2); azul, Etapa 3, em andamento; cinza tracejado, planejado. A figura é um SVG editável à mão em `docs/images/architecture.svg`.
 
 O rApp decide, a xApp executa e o Y1 mostra o resultado. O caminho SMO → rApp → A1 → E2 vem primeiro, na Etapa 3, acionado pela API de intenção do rApp. Na Etapa 6, o botão do portal passa a chamar essa API, e um atalho (um serviço de controle que fala direto com a xApp) entra para comparar os dois caminhos.
 
