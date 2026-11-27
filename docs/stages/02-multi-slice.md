@@ -502,7 +502,7 @@ Recursos durante o T5, com cotas, comparados com o fork sem cotas: CPU da VM de 
 
 - **Os cerca de 25% de PRBs que nenhum UE usa.** Candidatos: slots em que o UE não pode ser escalonado (processos HARQ esperando confirmação, restrições de `k1`), o slot misto do TDD contado como cheio, ou PRBs livres no `vrb_map` que o proportional fair não aproveita. Investigar com o `nrMAC_stats.log` lido durante o tráfego e, se preciso, um contador por slot no log do escalonador.
 - **Fork como padrão.** Ligado em 2026-11-25, depois da PoC e da [xApp de monitoração KPM por slice](#xapp-de-monitoração-kpm-por-slice) ([decisão 23](../decisions.md#23-fork-do-oai-como-padrão)).
-- **Próximo passo:** o [controle de cotas pelo E2SM-RC](#controle-de-cotas-pelo-e2sm-rc), para uma xApp mudar as cotas pela E2.
+- **Controle pela E2.** Pronto: o [controle de cotas pelo E2SM-RC](#controle-de-cotas-pelo-e2sm-rc) passou nos critérios C1 a C5.
 
 ## xApp de monitoração KPM por slice
 
@@ -648,25 +648,9 @@ slice_quota_ctrl --remove 1.000001 --remove 1.000002                  # remove a
 
 O PLMN padrão é `001.01`; outro vai em `--plmn MCC.MNC`. A xApp recusa, antes de enviar, cotas fora de `ded <= min <= max <= 100`, S-NSSAI repetida ou soma dos `min` acima de 100. O gNB confere de novo, já com as cotas dos outros slices.
 
-### Compilação na VM (manual)
+### Compilação na VM
 
-Até passar nos critérios abaixo, o gNB do handler e a xApp são compilados à mão. O `group_vars` continua no commit `95a3e328`, e um `vagrant provision` volta o clone do OAI para ele.
-
-1. Pôr o clone do OAI no commit do handler e recompilar o gNB (o FlexRIC é o mesmo, `ea6d9b4`):
-
-   ```bash
-   cd ~/openairinterface5g && git status --short | head && git fetch fork rc-slice-ctrl && git checkout --detach 000b2090 && git submodule update --init openair2/E2AP/flexric && git log -1 --oneline
-   cd ~/openairinterface5g/cmake_targets && ./build_oai -w SIMU --gNB --nrUE --build-e2 --ninja --cmake-opt -DE2AP_VERSION=E2AP_V3 --cmake-opt -DKPM_VERSION=KPM_V3_00 2>&1 | tail -3
-   ```
-
-2. Compilar a xApp:
-
-   ```bash
-   rm -rf ~/openran-lab-src && git clone -q -b feat/stage2-slice-quota-ctrl https://github.com/viniciussimao/openran-lab.git ~/openran-lab-src
-   FR=~/openairinterface5g/openair2/E2AP/flexric && CC=gcc-12 cmake -S ~/openran-lab-src/xapps/slice_quota_ctrl -B ~/xapps-build/slice_quota_ctrl -DFLEXRIC_SRC_DIR=$FR -DFLEXRIC_BUILD_DIR=$FR/build && cmake --build ~/xapps-build/slice_quota_ctrl -j4 && ctest --test-dir ~/xapps-build/slice_quota_ctrl --output-on-failure
-   ```
-
-Depois da validação, `oai_fork_commit` passa para o commit do handler e a `slice_quota_ctrl` entra em `xapps_list`.
+Desde a validação (C1 a C5), o provisionamento faz tudo: `oai_fork_commit` aponta para o commit `000b2090` da branch `rc-slice-ctrl`, e a role `xapps` compila a `slice_quota_ctrl` junto com a `slice_kpm_monitor` e põe as duas no `PATH`. Para compilar à mão, por exemplo ao mexer no código direto na VM, os comandos são os mesmos da [`slice_kpm_monitor`](#compilação-na-vm), trocando o nome da pasta.
 
 ### Critérios de aceite
 
@@ -682,15 +666,15 @@ No C3, a xApp recusa sozinha a soma de mínimos acima de 100. Para o gNB receber
 
 ### Resultados (2026-11-27)
 
-Fork no commit `c6e76b9f` para C1 a C3 e o início do C4; a correção da remoção (abaixo) está no `000b2090`. Perfil `30-70` na subida, os dois UEs com UDP de 200 Mbit/s cada.
+Fork no commit `c6e76b9f` para C1 a C3 e a primeira tentativa do C4; o C4 e o C5 passaram com a correção da remoção (abaixo), no `000b2090`. Perfil `30-70` na subida, os dois UEs com UDP de 200 Mbit/s cada.
 
 | Teste | Resultado | Situação |
 | --- | --- | --- |
 | C1 | A `slice_quota_ctrl --check` mostrou o estilo 2, a ação 6 e a árvore de parâmetros 1 a 12 na hierarquia certa; o E2 Setup com o anúncio novo não gerou nenhum assert | Passou |
 | C2 | Com 30 / 70: KPM 22% / 51%, `%disp` 22,3% / 48,6%, iperf3 38,4 / 74,2 Mbit/s. Depois do CONTROL para 70 / 30: KPM 51% / 22%, `%disp` 48,7% / 22,3%, iperf3 74,8 / 37,5 Mbit/s. Numa rodada com a troca no meio, os dois UEs ficaram com a média (56,2 / 58,6 Mbit/s). O slice que perdeu cota foi de 52% para 22% com um único relatório de transição (42%) | Passou |
 | C3 | O primeiro CONTROL (`1.000001` com `min` 60) foi aplicado e manteve a cota do slice 2 (`1 slice(s) na mensagem, 2 com cota`); o segundo foi recusado pelo gNB com `soma dos min_ratio (120) maior que 100`, sem mudar as cotas; gNB no ar, sem asserts | Passou |
-| C4 | Com `min` 60 no slice 1 e `max` 30 no slice 2, KPM 59% / 15% (129 / 33 Mbit/s). O `--clear` da primeira versão abortou na xApp, no codificador ASN.1 do FlexRIC (`rc_enc_ctrl_msg_asn ... Failed to encode`), sem chegar ao gNB | Refazer com `--remove` |
-| C5 | Até aqui, nenhum assert no gNB e nenhum erro nos logs da `slice_kpm_monitor` | Parcial |
+| C4 | Primeira versão: o `--clear` abortou na xApp, no codificador ASN.1 do FlexRIC (`rc_enc_ctrl_msg_asn ... Failed to encode`), sem chegar ao gNB; até ali, com `min` 60 no slice 1 e `max` 30 no slice 2, KPM 59% / 15% (129 / 33 Mbit/s). Com o `--remove` (fork `000b2090`): de 30 / 70, KPM 22% / 52% e 49 / 120 Mbit/s; depois de remover as duas cotas, **38% / 38%** e 85 / 85 Mbit/s, com um relatório de transição; log com `cotas por slice desligadas` e `aplicada (2 slice(s) na mensagem, 0 com cota)` | Passou |
+| C5 | Do C2 ao C4, nenhum assert no gNB e nenhum erro nos logs da `slice_kpm_monitor` | Passou |
 
 **Remoção das cotas.** No E2SM-RC, um parâmetro LIST precisa ter ao menos um item, então a lista vazia que a primeira versão usava para "remover todas as cotas" não é uma mensagem válida. Os testes do fork não pegaram o problema porque montam a mensagem direto na estrutura interna, sem o codificador. A correção (fork `000b2090`) usa a cota neutra, `min 0, max 100, ded 0`, que são os valores padrão do RRMPolicyRatio e não limitam nada: o gNB tira da lista o slice que a recebe e, sem nenhum slice com cota, volta à alocação padrão. Na xApp, o `--clear` virou `--remove SST.SD`, que pode se repetir.
 

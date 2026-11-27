@@ -17,16 +17,17 @@ oai_version: "2026.w46"
 oai_commit: "cb98db5b5d2d95c86673821bfc9fa1be9e225b97"
 oai_src_dir: "{{ lab_home }}/openairinterface5g"
 
-# Etapa 2: fork do OAI (decisões 20 a 22), a partir da tag acima. A branch
-# kpm-per-slice tem o escalonador de slices, o estado KPM por assinatura no
-# agente E2 e o submódulo do FlexRIC com a correção do RIC (ea6d9b4).
-# Ligado desde que a PoC (T0 a T6) e a xApp de KPM (K1 a K4) passaram. Com
-# true, a role oai_ran põe o clone no commit do fork e recompila; com
-# false, volta ao commit da tag (sem slices no escalonador).
+# Etapa 2: fork do OAI (decisões 20 a 25), a partir da tag acima. A branch
+# rc-slice-ctrl tem o escalonador de slices, o estado KPM por assinatura no
+# agente E2, o submódulo do FlexRIC com a correção do RIC (ea6d9b4) e o
+# CONTROL estilo 2 do E2SM-RC (Slice-level PRB quota). Ligado desde que a
+# PoC (T0 a T6), a xApp de KPM (K1 a K4) e o controle de cotas (C1 a C5)
+# passaram. Com true, a role oai_ran põe o clone no commit do fork e
+# recompila; com false, volta ao commit da tag (sem slices no escalonador).
 oai_slice_scheduler_enabled: true
 oai_fork_repo_url: https://github.com/viniciussimao/openairinterface5g.git
-oai_fork_branch: kpm-per-slice
-oai_fork_commit: "95a3e328f8900584db020f37d4ebdd38f217aecd"
+oai_fork_branch: rc-slice-ctrl
+oai_fork_commit: "000b209055cd7c94494c2f14f954345dce7195fd"
 
 # Versões de E2AP e E2SM-KPM: precisam ser iguais no OAI e no FlexRIC
 e2ap_version: E2AP_V3

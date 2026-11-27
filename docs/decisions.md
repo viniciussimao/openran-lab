@@ -227,7 +227,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 **Data:** 2026-11-25.
 
 - **Contexto:** a decisão 20 deixou o fork do OAI desligado em `group_vars` até a PoC passar. A PoC passou (T0 a T6), e a xApp de KPM por slice também (K1 a K4), com o fork e a correção do RIC (decisões 21 e 22).
-- **Decisão:** `oai_slice_scheduler_enabled: true` por padrão, com `oai_fork_branch: kpm-per-slice` e `oai_fork_commit` no `95a3e328`. A role nova `xapps` compila a `slice_kpm_monitor` no provisionamento, depois das roles `oai_ran`, `flexric` e `oai_cn5g`.
+- **Decisão:** `oai_slice_scheduler_enabled: true` por padrão, com `oai_fork_branch: kpm-per-slice` e `oai_fork_commit` no `95a3e328` (depois, `rc-slice-ctrl`, decisão 25). A role nova `xapps` compila a `slice_kpm_monitor` no provisionamento, depois das roles `oai_ran`, `flexric` e `oai_cn5g`.
 - **Motivo:** a Etapa 2 depende do escalonador por slice, do KPM por assinatura e da correção do RIC. Com a chave desligada, cada teste exigia mudar a cópia local do `group_vars` e compilar a xApp à mão.
 - **Consequências:**
   - um `vagrant provision` numa VM da Etapa 1 recompila o gNB e o FlexRIC;
@@ -267,5 +267,5 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 - **Motivo:** atualizar só os slices da mensagem deixa uma xApp mexer num slice sem conhecer as cotas dos outros. A conversão separada do MAC pode ser testada sem o gNB. Manter o ACK do FlexRIC evita mais um fork.
 - **Consequências:**
   - a xApp não sabe, pela resposta, se o gNB aplicou as cotas; os critérios C1 a C5 do [guia da Etapa 2](stages/02-multi-slice.md#controle-de-cotas-pelo-e2sm-rc) conferem pelo log e pelo KPM;
-  - até passar nesses critérios, o gNB do handler e a xApp são compilados à mão; depois, `oai_fork_commit` passa para a branch `rc-slice-ctrl` e a xApp entra em `xapps_list`;
+  - os critérios C1 a C5 passaram em 2026-11-27. `oai_fork_branch` passou para `rc-slice-ctrl` (commit `000b2090`), e a `slice_quota_ctrl` entrou em `xapps_list`;
   - os IDs dos parâmetros 1 a 12 seguem as implementações de referência e precisam ser conferidos com o texto do E2SM-RC v1.03.

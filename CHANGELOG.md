@@ -31,6 +31,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ### Alterado
 
+- Controle de cotas automatizado: `oai_fork_branch` passa para `rc-slice-ctrl` (commit `000b2090`), com o CONTROL estilo 2 do E2SM-RC, e a `slice_quota_ctrl` entra em `xapps_list`. Os critérios C1 a C5 passaram: troca de cotas com tráfego em até 2 relatórios, recusa pelo gNB, remoção das cotas (38% / 38% dos PRBs) e convivência com a `slice_kpm_monitor`.
 - Roadmap: o caminho O-RAN completo (SMO, Non-RT RIC, rApp de SLA, terminação A1-P, O1) passa a ser a Etapa 3, logo depois da Etapa 2; Y1, observabilidade e botão com atalho viram as Etapas 4, 5 e 6. Na Etapa 3, a entrada do laço é a API de intenção do rApp. Referências atualizadas no README, na arquitetura e nas decisões; decisão 24; índice das decisões completado até a 24.
 - Fork do OAI ligado por padrão (`oai_slice_scheduler_enabled: true`), na branch `kpm-per-slice`, commit `95a3e328`: escalonador por slice, KPM por assinatura e o submódulo do FlexRIC no `ea6d9b4`, em que o upstream corrigiu o erro do RIC com duas xApps. A correção manual do RIC sai do guia; decisões 22 (revista) e 23. Validado no servidor: dois provisionamentos (o segundo com `changed=0`) e o K4 repetido.
 - README: o início rápido clona `https://github.com/viniciussimao/openran-lab.git` em vez do marcador `<seu-usuario>`.
