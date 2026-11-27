@@ -1,0 +1,12 @@
+{
+  "description": "openran-lab: Near-RT RICs do A1 PMS (passo 3.2: só o A1 Simulator)",
+  "config": {
+    "ric": [
+      {
+        "name": "ric-sim",
+        "baseUrl": "http://a1-sim:8085",
+        "managedElementIds": ["gnb-sim"]
+      }
+    ]
+  }
+}

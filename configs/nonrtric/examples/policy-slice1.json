@@ -1,0 +1,15 @@
+{
+  "nearRtRicId": "ric-sim",
+  "policyTypeId": "ORAN_SliceSLATarget_2.0.0",
+  "policyId": "slice1-sla",
+  "serviceId": "openran-lab-test",
+  "policyObject": {
+    "scope": {
+      "sliceId": { "sst": 1, "sd": "000001", "plmnId": { "mcc": "001", "mnc": "01" } }
+    },
+    "sliceSlaObjectives": {
+      "guaDlThptPerSlice": 30000,
+      "maxDlThptPerSlice": 60000
+    }
+  }
+}
