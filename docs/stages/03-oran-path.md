@@ -1,6 +1,6 @@
 # Etapa 3: caminho O-RAN com FlexRIC
 
-**Status:** em andamento. O desenho abaixo foi aprovado em 2026-11-27 ([decisão 26](../decisions.md#26-desenho-da-etapa-3-caminho-o-ran-com-flexric)). O passo 3.1 (rede privada e VM `smo`) está implementado e aguarda a validação no servidor; veja o [passo 3.1](#passo-31-rede-privada-e-vm-smo).
+**Status:** em andamento. O desenho abaixo foi aprovado em 2026-11-27 ([decisão 26](../decisions.md#26-desenho-da-etapa-3-caminho-o-ran-com-flexric)). O passo 3.1 (rede privada e VM `smo`) está concluído e validado no servidor de teste; veja o [passo 3.1](#passo-31-rede-privada-e-vm-smo). O próximo é o 3.2.
 
 **Objetivo:** fechar o laço O-RAN completo, intenção → rApp → A1 → xApp → E2 → gNB, com componentes prontos da O-RAN SC onde existem e código próprio só onde não existem (decisão 16). Mostrar o gNB no SMO pelo O1.
 
@@ -239,6 +239,8 @@ No servidor, no diretório do repositório:
 | R3 | `vagrant ssh ran -c "ping -c 3 openran-smo"` e `vagrant ssh smo -c "ping -c 3 openran-ran"` | 0% de perda nos dois sentidos |
 | R4 | Segundo `vagrant provision ran` | `changed=0` no `PLAY RECAP` |
 | R5 | `vagrant ssh smo -c "nproc; free -m; docker --version"` | 2 CPUs, cerca de 6 GB e o Docker da versão fixada |
+
+**Resultado no servidor de teste (2026-11-27):** R1 a R5 passaram. A rede `openran-lab` ficou sem `<forward>` e sem `<dhcp>`, com o host em `192.168.150.1`. A `ran` (`.10`) e a `smo` (`.20`) se alcançam pelos nomes, com 0% de perda e cerca de 0,3 ms. O segundo `vagrant provision` deu `changed=0` nas duas VMs. A `smo` tem 2 CPUs, 5921 MB e Docker 29.10.1. A `ran`, criada antes da mudança, precisou do `virsh attach-interface` do passo 4: o `vagrant reload` não acrescentou a `eth1`.
 
 ## A confirmar antes ou durante a implementação
 
