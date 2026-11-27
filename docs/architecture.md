@@ -30,6 +30,8 @@ Na Etapa 8, o FlexRIC e a terminação A1-P própria dão lugar ao Near-RT RIC d
 | `obs` | Consumidor Y1, OpenTelemetry Collector, Prometheus, Grafana, portal | 4 a 8 |
 | `smo` | SMO, Non-RT RIC, rApp | 3 a 8 |
 
+As VMs se falam por uma rede privada do libvirt, isolada e com IPs fixos definidos no `config.yml` ([decisão 27](decisions.md#27-rede-privada-entre-as-vms)). A rede de gerenciamento do Vagrant fica só para o acesso às VMs e à internet.
+
 ## Decisões de projeto
 
 - **RF simulado:** o RFsimulator do OAI troca o rádio por amostras IQ via TCP. Toda a pilha acima da camada física é real, inclusive E2 e KPM.

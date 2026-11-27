@@ -1,6 +1,6 @@
 # Etapa 3: caminho O-RAN com FlexRIC
 
-**Status:** em andamento. O desenho abaixo foi aprovado em 2026-11-27 ([decisão 26](../decisions.md#26-desenho-da-etapa-3-caminho-o-ran-com-flexric)). A implementação começa pelo passo 3.1 do plano.
+**Status:** em andamento. O desenho abaixo foi aprovado em 2026-11-27 ([decisão 26](../decisions.md#26-desenho-da-etapa-3-caminho-o-ran-com-flexric)). O passo 3.1 (rede privada e VM `smo`) está implementado e aguarda a validação no servidor; veja o [passo 3.1](#passo-31-rede-privada-e-vm-smo).
 
 **Objetivo:** fechar o laço O-RAN completo, intenção → rApp → A1 → xApp → E2 → gNB, com componentes prontos da O-RAN SC onde existem e código próprio só onde não existem (decisão 16). Mostrar o gNB no SMO pelo O1.
 
@@ -185,9 +185,58 @@ Cada passo tem o próprio critério e segue a regra "manual primeiro, automaçã
 
 Depois do 3.6, as decisões tomadas viram entradas novas no [registro de decisões](../decisions.md), e o passo a passo de cada parte entra neste guia.
 
+## Passo 3.1: rede privada e VM `smo`
+
+**O que muda:** cada VM ganha a interface `eth1` na rede privada `openran-lab` (isolada, `192.168.150.0/24` no modelo), com IP fixo vindo do `config.yml`, e as VMs se conhecem pelos nomes `openran-ran`, `openran-smo` e `openran-obs`. A VM `smo` sobe com 2 vCPUs, 6 GB e Docker (roles `common` e `docker`). Os motivos estão na [decisão 27](../decisions.md#27-rede-privada-entre-as-vms).
+
+**Recursos no servidor de teste (2026-11-27):** 12 CPUs e 30 GB, com 23 GB disponíveis e só a VM `ran` (8 vCPUs, 16 GB) ligada. Com a `smo`, as VMs pedem 10 vCPUs e 22 GB.
+
+### Como executar
+
+No servidor, no diretório do repositório:
+
+1. Atualize o `config.yml` a partir do modelo: acrescente o bloco `lab_network`, o `ip` de cada VM e ligue a `smo` (`enabled: true`). Sem essas chaves, o `Vagrantfile` para e diz o que falta.
+
+   ```yaml
+   lab_network:
+     name: openran-lab
+     address: 192.168.150.0/24
+
+   vms:
+     ran:
+       enabled: true
+       cpus: 8
+       memory_mb: 16384
+       ip: 192.168.150.10
+     obs:
+       enabled: false
+       cpus: 2
+       memory_mb: 4096
+       ip: 192.168.150.30
+     smo:
+       enabled: true
+       cpus: 2
+       memory_mb: 6144
+       ip: 192.168.150.20
+   ```
+
+2. Confira o host: `./scripts/preflight.sh`. A rede `openran-lab` deve aparecer como "será criada pelo Vagrant".
+3. Dê à VM `ran` a interface nova, o que a reinicia: `vagrant reload ran`.
+4. Crie a `smo`: `vagrant up smo`.
+5. Reprovisione a `ran` duas vezes com `vagrant provision ran`. A primeira registra os nomes no `/etc/hosts`; a segunda deve terminar com `changed=0`.
+
+### Critérios
+
+| # | Verificação | Esperado |
+| --- | --- | --- |
+| R1 | `virsh net-dumpxml openran-lab` | Rede sem `<forward>` e sem `<dhcp>`, com o host em `192.168.150.1` |
+| R2 | `vagrant ssh ran -c "ip -4 -br addr show eth1"` e o mesmo na `smo` | `192.168.150.10/24` na `ran` e `192.168.150.20/24` na `smo` |
+| R3 | `vagrant ssh ran -c "ping -c 3 openran-smo"` e `vagrant ssh smo -c "ping -c 3 openran-ran"` | 0% de perda nos dois sentidos |
+| R4 | Segundo `vagrant provision ran` | `changed=0` no `PLAY RECAP` |
+| R5 | `vagrant ssh smo -c "nproc; free -m; docker --version"` | 2 CPUs, cerca de 6 GB e o Docker da versão fixada |
+
 ## A confirmar antes ou durante a implementação
 
-- **Recursos livres no servidor:** como ele é compartilhado, confirmar quanta CPU e memória sobram com a VM `ran` no ar (`free -g`, `nproc`, `virsh list`).
 - **Imagens da release N:** escolher as tags do A1 PMS e do A1 Simulator e fixar os digests.
 - **O1 Adapter com o OAI `2026.w46`:** confirmar que o adapter entende a saída do módulo `o1` do telnet desta tag. Nenhuma fonte documenta a versão testada.
 - **Tamanho do OAM em Docker:** medir a memória real da `solution/smo` (common + oam) antes de decidir os recursos da `smo`.
