@@ -12,7 +12,7 @@ O objetivo final é um cenário em que o consumidor de um slice acompanha dados 
 | --- | --- | --- |
 | 1 | RAN + core + E2 (OAI gNB/nrUE em rfsim, OAI CN5G, FlexRIC) | Concluída (`v0.1.0`) |
 | 2 | Multi-slice (dois slices, dois UEs, xApp de slicing) | Concluída (`v0.2.0`, [guia](docs/stages/02-multi-slice.md)) |
-| 3 | Caminho O-RAN com FlexRIC (SMO, Non-RT RIC, rApp, terminação A1-P, O1) | Em investigação ([guia](docs/stages/03-oran-path.md)) |
+| 3 | Caminho O-RAN com FlexRIC (SMO, Non-RT RIC, rApp, terminação A1-P, O1) | Em andamento: desenho aprovado ([guia](docs/stages/03-oran-path.md)) |
 | 4 | Interface Y1 (produtor e consumidor com mTLS) | Planejada |
 | 5 | Observabilidade (OpenTelemetry, Prometheus, Grafana) | Planejada |
 | 6 | Botão de ação para o consumidor e atalho de laboratório | Planejada |

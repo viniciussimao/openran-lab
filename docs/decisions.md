@@ -29,6 +29,7 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
 23. [Fork do OAI como padrão](#23-fork-do-oai-como-padrão)
 24. [Caminho O-RAN antes da exposição de dados](#24-caminho-o-ran-antes-da-exposição-de-dados)
 25. [Controle de cotas pelo E2SM-RC estilo 2](#25-controle-de-cotas-pelo-e2sm-rc-estilo-2)
+26. [Desenho da Etapa 3: caminho O-RAN com FlexRIC](#26-desenho-da-etapa-3-caminho-o-ran-com-flexric)
 
 ## 1. Repositório oficial do OAI
 
@@ -269,3 +270,23 @@ Decisões técnicas do projeto, com o contexto e o motivo de cada uma. Quando um
   - a xApp não sabe, pela resposta, se o gNB aplicou as cotas; os critérios C1 a C5 do [guia da Etapa 2](stages/02-multi-slice.md#controle-de-cotas-pelo-e2sm-rc) conferem pelo log e pelo KPM;
   - os critérios C1 a C5 passaram em 2026-11-27. `oai_fork_branch` passou para `rc-slice-ctrl` (commit `000b2090`), e a `slice_quota_ctrl` entrou em `xapps_list`;
   - os IDs dos parâmetros 1 a 12 seguem as implementações de referência e precisam ser conferidos com o texto do E2SM-RC v1.03.
+
+## 26. Desenho da Etapa 3: caminho O-RAN com FlexRIC
+
+**Data:** 2026-11-27.
+
+- **Contexto:** a [investigação da Etapa 3](stages/03-oran-path.md) leu o código do A1 PMS (`ccsdk/oran`) e do A1 Simulator, a A1TD v5 (ETSI TS 103 988) e o repositório do OAM da O-RAN SC, para fechar o laço intenção → rApp → A1 → xApp → E2 com o mínimo de código próprio (decisão 16).
+- **Decisão:**
+  - **A1:** A1AP v2.0 (`/A1-P/v2`), a primeira versão que o A1 PMS tenta ao descobrir um Near-RT RIC;
+  - **tipo de política:** `ORAN_SliceSLATarget_2.0.0`, o tipo padronizado de SLA de slice, com as metas de vazão DL por slice (`guaDlThptPerSlice` e `maxDlThptPerSlice`, em kbps). As outras metas recebem `NOT_ENFORCED`;
+  - **xApp de SLA de slice:** em malha fechada, lê a vazão de cada slice pelo KPM e ajusta as cotas pelo E2SM-RC, com o núcleo separado da API do FlexRIC;
+  - **terminação A1-P:** serviço próprio em Python na VM `ran`, separado da xApp, que valida as políticas contra o esquema da A1TD e as repassa à xApp no formato do A1 Mediator da O-RAN SC;
+  - **Non-RT RIC:** A1 PMS e A1 Simulator da release N da O-RAN SC, em Docker, na VM `smo`, com as imagens fixadas por digest;
+  - **rApp de SLA:** serviço próprio na VM `smo`, com uma API de intenção sobre a API northbound v3 do PMS; o gerenciador de rApps (R1) fica fora;
+  - **O1:** módulo `o1` do telnet do OAI, O1 Adapter da OAI e OAM da O-RAN SC em Docker, no último passo da etapa;
+  - **rede:** uma rede privada do libvirt entre as VMs, com IPs fixos no `config.yml`.
+- **Motivo:** o tipo padronizado e a malha fechada fazem do laço o caso de uso de garantia de SLA de slice da O-RAN, que o PMS e o rApp de qualquer fornecedor entendem. Separar a terminação da xApp deixa a troca pelo A1 Mediator na Etapa 8 restrita à origem das políticas. Validar o PMS contra o simulador oficial antes da terminação própria dá uma referência de conformidade.
+- **Consequências:**
+  - a A1TD deixa para estudo futuro como o Near-RT RIC usa as metas de vazão por slice; a interpretação do laboratório (malha fechada sobre cotas de PRB) fica documentada no guia;
+  - o OAM pede 16 GB e não cabe junto com a VM `ran` como está; os testes do O1 vão exigir ajustar a memória das VMs;
+  - a etapa segue o plano de seis passos do guia, cada um com critério próprio e com a regra "manual primeiro, automação depois".

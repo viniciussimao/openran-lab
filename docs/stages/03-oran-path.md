@@ -1,6 +1,6 @@
 # Etapa 3: caminho O-RAN com FlexRIC
 
-**Status:** em investigação. Este documento reúne o que a leitura das especificações e do código dos componentes mostrou e propõe um desenho, que ainda precisa ser aprovado. Nada foi instalado nem testado no servidor.
+**Status:** em andamento. O desenho abaixo foi aprovado em 2026-11-27 ([decisão 26](../decisions.md#26-desenho-da-etapa-3-caminho-o-ran-com-flexric)). A implementação começa pelo passo 3.1 do plano.
 
 **Objetivo:** fechar o laço O-RAN completo, intenção → rApp → A1 → xApp → E2 → gNB, com componentes prontos da O-RAN SC onde existem e código próprio só onde não existem (decisão 16). Mostrar o gNB no SMO pelo O1.
 
