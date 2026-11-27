@@ -6,6 +6,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 
 ## [Não publicado]
 
+### Adicionado
+
+- Guia da Etapa 3 (`docs/stages/03-oran-path.md`) com a investigação e o desenho proposto do caminho O-RAN: A1AP v2.0 (como o A1 PMS descobre e usa o Near-RT RIC, lido no código do `ccsdk/oran`), tipo de política `ORAN_SliceSLATarget_2.0.0` da A1TD v5, xApp de SLA de slice em malha fechada, terminação A1-P própria, A1 PMS e A1 Simulator da release N em Docker, rApp de SLA com API de intenção, O1 com o módulo `o1` do telnet do OAI, o O1 Adapter e o OAM da O-RAN SC em Docker, rede privada entre as VMs, recursos e plano em seis passos. README com a Etapa 3 em investigação.
+
 ### Alterado
 
 - Documentação revisada para quem chega ao projeto: o guia da Etapa 2 foi dividido em três arquivos (como executar e como funciona; testes e resultados; investigação), com um roteiro único e atualizado para subir o cenário e usar as xApps. O README ganhou o cenário atual, um guia de leitura, a tabela de testes e resultados e as versões do fork e do FlexRIC. Atualizados o NOTICE (branch `rc-slice-ctrl`), os comentários das VMs no `config.example.yml` (numeração nova das etapas), a decisão 3, a arquitetura, o guia da Etapa 1 (gNB do fork) e o CONTRIBUTING (branches `release/`). Novo `xapps/README.md`. Links internos conferidos.
