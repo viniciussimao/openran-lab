@@ -6,17 +6,20 @@
  * Procura, em cada E2 node, o CONTROL estilo 2 do E2SM-RC ("Radio Resource
  * Allocation Control") com a ação 6 ("Slice-level PRB quota", E2SM-RC v1.03,
  * 8.4.3.6) e envia um CONTROL com as cotas pedidas. O gNB atualiza só os
- * slices da mensagem e mantém os outros; com --clear, remove todas as cotas.
+ * slices da mensagem e mantém os outros. A cota neutra (min 0, max 100,
+ * ded 0, o que --remove envia) remove a cota do slice; sem nenhuma cota, o
+ * gNB volta à alocação padrão. Não há como remover todas de uma vez: uma
+ * LIST do E2SM-RC precisa de ao menos um item.
  *
  * Uso:
- *   slice_quota_ctrl --quota SST.SD:min:max:ded [--quota ...] [--plmn MCC.MNC]
- *                    [opções do FlexRIC]
- *   slice_quota_ctrl --clear [--plmn MCC.MNC] [opções do FlexRIC]
+ *   slice_quota_ctrl [--quota SST.SD:min:max:ded ...] [--remove SST.SD ...]
+ *                    [--plmn MCC.MNC] [opções do FlexRIC]
  *   slice_quota_ctrl --check [opções do FlexRIC]
  *
  *   --quota Q   cota de um slice, por exemplo 1.000001:0:70:0 (min, max e
  *               dedicated, em % dos PRBs); repita para cada slice
- *   --clear     envia a lista vazia: o gNB volta à alocação sem cotas
+ *   --remove S  remove a cota do slice S ("SST.SD" ou "SST"); pode se repetir
+ *               e se misturar com --quota
  *   --plmn P    PLMN dos slices (padrão 001.01)
  *   --check     só mostra o que cada E2 node anuncia no estilo 2, sem CONTROL
  *   Outras opções (por exemplo, -c arquivo.conf) vão para o FlexRIC.
@@ -63,7 +66,6 @@ enum {
 
 static sqc_quota_t quotas[SQC_MAX_QUOTAS];
 static size_t n_quotas;
-static bool clear_all;
 static bool check_only;
 static sqc_plmn_t plmn = {.mcc = 1, .mnc = 1, .mnc_digit_len = 2};
 
@@ -233,10 +235,8 @@ static void print_action(size_t node_idx, const seq_ctrl_act_2_t *act)
 static _Noreturn void usage(const char *prog)
 {
   fprintf(stderr,
-          "uso: %s --quota SST.SD:min:max:ded [--quota ...] [--plmn MCC.MNC] [opções do FlexRIC]\n"
-          "     %s --clear [--plmn MCC.MNC] [opções do FlexRIC]\n"
+          "uso: %s [--quota SST.SD:min:max:ded ...] [--remove SST.SD ...] [--plmn MCC.MNC] [opções do FlexRIC]\n"
           "     %s --check [opções do FlexRIC]\n",
-          prog,
           prog,
           prog);
   exit(2);
@@ -260,8 +260,12 @@ static int parse_args(int argc, char **argv, char **fr_argv)
         fprintf(stderr, "PLMN inválido: %s (formato MCC.MNC, por exemplo 001.01)\n", argv[i]);
         usage(argv[0]);
       }
-    } else if (strcmp(argv[i], "--clear") == 0) {
-      clear_all = true;
+    } else if (strcmp(argv[i], "--remove") == 0 && has_val) {
+      if (n_quotas >= SQC_MAX_QUOTAS || !sqc_parse_remove(argv[++i], &quotas[n_quotas])) {
+        fprintf(stderr, "slice inválido ou slices demais: %s (formato SST.SD, por exemplo 1.000001)\n", argv[i]);
+        usage(argv[0]);
+      }
+      n_quotas++;
     } else if (strcmp(argv[i], "--check") == 0) {
       check_only = true;
     } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -270,7 +274,7 @@ static int parse_args(int argc, char **argv, char **fr_argv)
       fr_argv[fr_argc++] = argv[i];
     }
   }
-  const int modes = (n_quotas > 0) + clear_all + check_only;
+  const int modes = (n_quotas > 0) + check_only;
   if (modes != 1)
     usage(argv[0]);
   return fr_argc;
@@ -310,14 +314,10 @@ int main(int argc, char **argv)
     if (check_only)
       continue;
 
-    if (clear_all) {
-      printf("E2 node %zu: CONTROL com a lista vazia (remover todas as cotas)\n", i);
-    } else {
-      for (size_t q = 0; q < n_quotas; q++) {
-        char line[64];
-        sqc_format_quota(&quotas[q], line, sizeof(line));
-        printf("E2 node %zu: cota %s\n", i, line);
-      }
+    for (size_t q = 0; q < n_quotas; q++) {
+      char line[64];
+      sqc_format_quota(&quotas[q], line, sizeof(line));
+      printf("E2 node %zu: cota %s%s\n", i, line, sqc_quota_is_neutral(&quotas[q]) ? " (remove a cota do slice)" : "");
     }
     rc_ctrl_req_data_t ctrl = gen_quota_ctrl();
     const sm_ans_xapp_t ans = control_sm_xapp_api(&node->id, SQC_RC_RAN_FUNC_ID, &ctrl);

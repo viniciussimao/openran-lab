@@ -40,6 +40,17 @@ static void test_parse_quota(void)
   CHECK(!sqc_parse_quota(NULL, &q));
 }
 
+static void test_remove(void)
+{
+  sqc_quota_t q;
+  CHECK(sqc_parse_remove("1.000002", &q) && q.sst == 1 && q.sd == 2 && sqc_quota_is_neutral(&q));
+  CHECK(sqc_parse_remove("3", &q) && q.sd == SQC_SD_NONE && q.max_ratio == 100);
+  CHECK(!sqc_parse_remove("1.000002:0:100:0", &q));
+  CHECK(!sqc_parse_remove("1.0002", &q));
+  CHECK(!sqc_parse_remove("", &q));
+  CHECK(sqc_parse_quota("1.000001:0:70:0", &q) && !sqc_quota_is_neutral(&q));
+}
+
 static void test_plmn(void)
 {
   sqc_plmn_t p;
@@ -114,6 +125,7 @@ static void test_format(void)
 int main(void)
 {
   test_parse_quota();
+  test_remove();
   test_plmn();
   test_sd_octets();
   test_validate();

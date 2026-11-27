@@ -69,6 +69,22 @@ bool sqc_parse_quota(const char *text, sqc_quota_t *out)
   return true;
 }
 
+bool sqc_parse_remove(const char *snssai, sqc_quota_t *out)
+{
+  if (snssai == NULL || strchr(snssai, ':') != NULL)
+    return false;
+  char buf[32];
+  const int n = snprintf(buf, sizeof(buf), "%s:0:100:0", snssai);
+  if (n < 0 || (size_t)n >= sizeof(buf))
+    return false;
+  return sqc_parse_quota(buf, out);
+}
+
+bool sqc_quota_is_neutral(const sqc_quota_t *q)
+{
+  return q->min_ratio == 0 && q->max_ratio == 100 && q->dedicated_ratio == 0;
+}
+
 bool sqc_parse_plmn(const char *text, sqc_plmn_t *out)
 {
   if (text == NULL)

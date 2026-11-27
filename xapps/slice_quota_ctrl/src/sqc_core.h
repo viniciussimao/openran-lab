@@ -43,6 +43,14 @@ typedef struct {
  *  @return true se o texto é válido e 0 <= ded <= min <= max <= 100 */
 bool sqc_parse_quota(const char *text, sqc_quota_t *out);
 
+/** @brief Cota neutra (min 0, max 100, ded 0) para a S-NSSAI "SST.SD" ou
+ *         "SST": não limita nada, e o gNB a usa para remover a cota do slice.
+ *  @return true se a S-NSSAI é válida */
+bool sqc_parse_remove(const char *snssai, sqc_quota_t *out);
+
+/** @brief A cota é a neutra (min 0, max 100, ded 0). */
+bool sqc_quota_is_neutral(const sqc_quota_t *q);
+
 /** @brief Lê um PLMN no formato "MCC.MNC" (por exemplo, "001.01").
  *  @return true se o texto é válido */
 bool sqc_parse_plmn(const char *text, sqc_plmn_t *out);

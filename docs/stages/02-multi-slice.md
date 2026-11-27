@@ -448,7 +448,7 @@ No terminal de testes, suba o segundo servidor do iperf3 e defina as duas funç�
 ```bash
 docker exec oai-ext-dn iperf3 -s -p 5202 -D
 ue_ip() { sudo ip netns exec "ue$1" ip -4 -o addr show oaitun_ue1 | awk '{print $4}' | cut -d/ -f1; }
-janela() { local nome=$1 dur=$2 rate=$3 L n; shift 3; L=$(wc -l < /tmp/gnb.log); for n in "$@"; do sudo ip netns exec "ue$n" iperf3 -c 192.168.70.135 -p "520$n" -B "$(ue_ip "$n")" -u -b "$rate" -l 1300 -R -t "$dur" --logfile "/tmp/iperf-$nome-ue$n.log" & done; wait; for n in "$@"; do echo "== UE$n"; tail -n 4 "/tmp/iperf-$nome-ue$n.log"; done; tail -n +"$L" /tmp/gnb.log | ~/slice-prb-share.sh -s 3 | tee "/tmp/$nome.txt"; }
+janela() { local nome=$1 dur=$2 rate=$3 L n pids=(); shift 3; L=$(wc -l < /tmp/gnb.log); for n in "$@"; do sudo ip netns exec "ue$n" iperf3 -c 192.168.70.135 -p "520$n" -B "$(ue_ip "$n")" -u -b "$rate" -l 1300 -R -t "$dur" --logfile "/tmp/iperf-$nome-ue$n.log" & pids+=($!); done; wait "${pids[@]}"; for n in "$@"; do echo "== UE$n"; tail -n 4 "/tmp/iperf-$nome-ue$n.log"; done; tail -n +"$L" /tmp/gnb.log | ~/slice-prb-share.sh -s 3 | tee "/tmp/$nome.txt"; }
 ```
 
 `janela NOME SEGUNDOS TAXA UE...` marca a linha atual do log do gNB, roda o iperf3 nos UEs pedidos ao mesmo tempo e, no fim, resume só o trecho do teste. O `-s 3` descarta os três primeiros períodos, enquanto o tráfego sobe. Antes de cada teste, confira o perfil e os IPs:
@@ -601,11 +601,11 @@ Fork `12537539` (`kpm-per-slice`), perfil `30-70`, dois UEs. No K1 a K4, UDP de 
 
 ### Handler no fork
 
-A branch `rc-slice-ctrl` do fork (commit `c6e76b9f`, a partir de `kpm-per-slice`) traz:
+A branch `rc-slice-ctrl` do fork (commit `000b2090`, a partir de `kpm-per-slice`) traz:
 
 - **Anúncio no E2 Setup:** o estilo 2, só com a ação 6, e a árvore de parâmetros abaixo. Só nós com MAC (gNB monolítico ou DU) anunciam.
 - **Conversão da mensagem** em `ran_func_rc_slice.{h,c}`, sem depender do MAC, com testes GTest em `O-RAN/tests/` (`-DENABLE_TESTS=ON`).
-- **Handler** em `ran_func_rc.c`. Ele atualiza só os slices da mensagem e mantém as cotas dos outros. Uma lista vazia remove todas as cotas e volta ao proportional fair. Ele exige o PLMN de uma célula do gNB e valida o resultado com as regras do escalonador. Uma mensagem inválida não muda nada.
+- **Handler** em `ran_func_rc.c`. Ele atualiza só os slices da mensagem e mantém as cotas dos outros. A cota neutra (`min 0, max 100, ded 0`) remove a cota do slice; sem nenhum slice com cota, o DL volta ao proportional fair. Não há mensagem para remover todas de uma vez, porque um parâmetro LIST do E2SM-RC precisa de ao menos um item. Ele exige o PLMN de uma célula do gNB e valida o resultado com as regras do escalonador. Uma mensagem inválida não muda nada.
 
 | ID | Parâmetro | Tipo | Valor |
 | --- | --- | --- | --- |
@@ -643,7 +643,7 @@ Fica em [`xapps/slice_quota_ctrl/`](../../xapps/slice_quota_ctrl/), sob a Apache
 ```bash
 slice_quota_ctrl --check                                              # mostra o anúncio do estilo 2
 slice_quota_ctrl --quota 1.000001:0:70:0 --quota 1.000002:0:30:0      # muda as cotas dos dois slices
-slice_quota_ctrl --clear                                              # remove todas as cotas
+slice_quota_ctrl --remove 1.000001 --remove 1.000002                  # remove as cotas dos dois slices
 ```
 
 O PLMN padrão é `001.01`; outro vai em `--plmn MCC.MNC`. A xApp recusa, antes de enviar, cotas fora de `ded <= min <= max <= 100`, S-NSSAI repetida ou soma dos `min` acima de 100. O gNB confere de novo, já com as cotas dos outros slices.
@@ -655,7 +655,7 @@ Até passar nos critérios abaixo, o gNB do handler e a xApp são compilados à 
 1. Pôr o clone do OAI no commit do handler e recompilar o gNB (o FlexRIC é o mesmo, `ea6d9b4`):
 
    ```bash
-   cd ~/openairinterface5g && git status --short | head && git fetch fork rc-slice-ctrl && git checkout --detach c6e76b9f && git submodule update --init openair2/E2AP/flexric && git log -1 --oneline
+   cd ~/openairinterface5g && git status --short | head && git fetch fork rc-slice-ctrl && git checkout --detach 000b2090 && git submodule update --init openair2/E2AP/flexric && git log -1 --oneline
    cd ~/openairinterface5g/cmake_targets && ./build_oai -w SIMU --gNB --nrUE --build-e2 --ninja --cmake-opt -DE2AP_VERSION=E2AP_V3 --cmake-opt -DKPM_VERSION=KPM_V3_00 2>&1 | tail -3
    ```
 
@@ -672,10 +672,32 @@ Depois da validação, `oai_fork_commit` passa para o commit do handler e a `sli
 
 | Teste | Cenário | Critério |
 | --- | --- | --- |
-| C1 Anúncio | gNB do commit `c6e76b9f`, `slice_quota_ctrl --check` | A xApp mostra o estilo 2, a ação 6 e a árvore de parâmetros 1 a 12 |
+| C1 Anúncio | gNB da branch `rc-slice-ctrl`, `slice_quota_ctrl --check` | A xApp mostra o estilo 2, a ação 6 e a árvore de parâmetros 1 a 12 |
 | C2 Troca com tráfego | Perfil `30-70`, os dois UEs saturados; no meio do tráfego, CONTROL para 70 / 30 | Linhas `cota DL` novas e `aplicada` no log; `prb_dl_pct` da `slice_kpm_monitor` troca de lado (cerca de 22% e 52% para 52% e 22%) em até 2 relatórios |
 | C3 Recusa | CONTROL com `min` 60 nos dois slices, montado sem a validação da xApp | O log mostra `recusada` com o motivo; as cotas não mudam; o gNB continua no ar |
-| C4 Remoção | `slice_quota_ctrl --clear` com tráfego | Linha `cotas por slice desligadas` no log; a divisão de PRBs fica como no perfil `100-100` |
+| C4 Remoção | `slice_quota_ctrl --remove 1.000001 --remove 1.000002` com tráfego | Linha `cotas por slice desligadas` no log; a divisão de PRBs passa à de sem cotas |
 | C5 Convivência | C2 a C4 com a `slice_kpm_monitor` rodando | Nenhum erro nas xApps; nenhum assert no gNB |
 
 No C3, a xApp recusa sozinha a soma de mínimos acima de 100. Para o gNB receber a mensagem, o teste usa dois CONTROLs válidos em sequência, que juntos passam do limite: primeiro `--quota 1.000001:60:100:0`, depois `--quota 1.000002:60:100:0`. O segundo só é inválido somado às cotas em vigor, e é o gNB que o recusa.
+
+### Resultados (2026-11-27)
+
+Fork no commit `c6e76b9f` para C1 a C3 e o início do C4; a correção da remoção (abaixo) está no `000b2090`. Perfil `30-70` na subida, os dois UEs com UDP de 200 Mbit/s cada.
+
+| Teste | Resultado | Situação |
+| --- | --- | --- |
+| C1 | A `slice_quota_ctrl --check` mostrou o estilo 2, a ação 6 e a árvore de parâmetros 1 a 12 na hierarquia certa; o E2 Setup com o anúncio novo não gerou nenhum assert | Passou |
+| C2 | Com 30 / 70: KPM 22% / 51%, `%disp` 22,3% / 48,6%, iperf3 38,4 / 74,2 Mbit/s. Depois do CONTROL para 70 / 30: KPM 51% / 22%, `%disp` 48,7% / 22,3%, iperf3 74,8 / 37,5 Mbit/s. Numa rodada com a troca no meio, os dois UEs ficaram com a média (56,2 / 58,6 Mbit/s). O slice que perdeu cota foi de 52% para 22% com um único relatório de transição (42%) | Passou |
+| C3 | O primeiro CONTROL (`1.000001` com `min` 60) foi aplicado e manteve a cota do slice 2 (`1 slice(s) na mensagem, 2 com cota`); o segundo foi recusado pelo gNB com `soma dos min_ratio (120) maior que 100`, sem mudar as cotas; gNB no ar, sem asserts | Passou |
+| C4 | Com `min` 60 no slice 1 e `max` 30 no slice 2, KPM 59% / 15% (129 / 33 Mbit/s). O `--clear` da primeira versão abortou na xApp, no codificador ASN.1 do FlexRIC (`rc_enc_ctrl_msg_asn ... Failed to encode`), sem chegar ao gNB | Refazer com `--remove` |
+| C5 | Até aqui, nenhum assert no gNB e nenhum erro nos logs da `slice_kpm_monitor` | Parcial |
+
+**Remoção das cotas.** No E2SM-RC, um parâmetro LIST precisa ter ao menos um item, então a lista vazia que a primeira versão usava para "remover todas as cotas" não é uma mensagem válida. Os testes do fork não pegaram o problema porque montam a mensagem direto na estrutura interna, sem o codificador. A correção (fork `000b2090`) usa a cota neutra, `min 0, max 100, ded 0`, que são os valores padrão do RRMPolicyRatio e não limitam nada: o gNB tira da lista o slice que a recebe e, sem nenhum slice com cota, volta à alocação padrão. Na xApp, o `--clear` virou `--remove SST.SD`, que pode se repetir.
+
+**UE que cai por inatividade.** Numa rodada, os UEs ficaram minutos sem tráfego depois da subida; a rede liberou a conexão do UE 1, e, quando o iperf3 começou, o core recusou o pedido de volta do UE (`Service Reject ... UE_identity_cannot_be_derived_by_the_network`) e o nrUE encerrou. Para os testes, um ping de fundo em cada UE mantém a conexão ([troubleshooting](../troubleshooting.md)):
+
+```bash
+for n in 1 2; do sudo ip netns exec ue$n ping -I oaitun_ue1 -i 1 192.168.70.135 > /dev/null 2>&1 & done
+```
+
+A `janela` espera só os próprios iperf3 (`wait` com os PIDs), para funcionar com esses pings no mesmo terminal.
